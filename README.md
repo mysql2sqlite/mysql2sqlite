@@ -43,4 +43,4 @@ MIT
 * many different contributors forked the gist and made wildly varying changes, because @esperlu stopped working on it and didn't respond
 * @dumblob took over in Aug 2015 and applied the most important patches from all the forks as well as many his own patches tested on Drupal DB
 * @dumblob added the MIT license under assumption, that the original gist was released into public domain, because despite significant changes, it wasn't clean room engineering.
-* 2016-05-11 17:32 GMT+2 @esperlu declared MIT as a fitting license (also retrospectively) and the [original gist](https://gist.github.com/esperlu/943776 ) as deprecated.
+* 2016-05-11 17:32 GMT+2 [@esperlu declared](https://github.com/dumblob/mysql2sqlite/issues/2 ) MIT as a fitting license (also retrospectively) and the [original gist](https://gist.github.com/esperlu/943776 ) as deprecated.
