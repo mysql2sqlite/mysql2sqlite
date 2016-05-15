@@ -72,7 +72,7 @@ inView != 0 { next }
   if ( $0 ~ /IF NOT EXISTS|if not exists/ || $0 ~ /TEMPORARY|temporary/ ){
     caseIssue = 1
   }
-  if ( match( $0, /`[^`]+/ ) ) {
+  if ( match( $0, /[`"][^`"]+/ ) ) {
     tableName = substr( $0, RSTART+1, RLENGTH-1 )
   }
   aInc = 0
@@ -99,14 +99,14 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     aInc = 1;
     gsub( /AUTO_INCREMENT|auto_increment/, "PRIMARY KEY AUTOINCREMENT" )
   }
-  gsub( /(UNIQUE KEY|unique key) `.*` /, "UNIQUE " )
+  gsub( /(UNIQUE KEY|unique key) ["`].*["`] /, "UNIQUE " )
   gsub( /(CHARACTER SET|character set) [^ ]+ /, "" )
   gsub( /DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP|default current_timestamp on update current_timestamp/, "" )
   gsub( /(COLLATE|collate) [^ ]+ /, "" )
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
-  gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
+  gsub( / (INT|int|INTEGER|integer|TINYINT|tinyint|SMALLINT|smallint|MEDIUMINT|mediumint|BIGINT|bigint)([(][0-9]+[)])?/, " integer" )
   # field comments are not supported
   gsub( / (COMMENT|comment).+$/, "" )
   # Get commas off end of line
@@ -156,7 +156,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   if ($0 == ");"){
     print
   } else {
-    if (  match( $0, /`[^`]+/ ) ) {
+    if (  match( $0, /[`"][^`"]+/ ) ) {
       indexName = substr( $0, RSTART+1, RLENGTH-1 )
     }
     if ( match( $0, /\([^()]+/ ) ) {
