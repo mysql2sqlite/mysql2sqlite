@@ -100,7 +100,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     gsub( /AUTO_INCREMENT|auto_increment/, "PRIMARY KEY AUTOINCREMENT" )
   }
   gsub( /(UNIQUE KEY|unique key) `.*` /, "UNIQUE " )
-  gsub( /(CHARACTER SET|character set) [^ ]+ ?/, "" )
+  gsub( /(CHARACTER SET|character set) [^ ]+[ ,]/, "" )
   gsub( /DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP|default current_timestamp on update current_timestamp/, "" )
   gsub( /(COLLATE|collate) [^ ]+ /, "" )
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
