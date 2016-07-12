@@ -12,7 +12,7 @@ mysqldump --no-data -u root -pmyPassword myDB
 ~~~~
 ), run just
 ~~~~
-mysql2sqlite.sh dump_mysql.sql | sqlite3 mysqlite3.db
+mysql2sqlite dump_mysql.sql | sqlite3 mysqlite3.db
 ~~~~
 
 ## Development
