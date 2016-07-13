@@ -2,24 +2,27 @@
 
 Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` statements from the `CREATE` block).
 
-After dumping the MySQL DB somehow (e.g.
-~~~~
+## Usage
+
+1. Dump MySQL DB
+
+    ~~~~
 mysqldump --skip-extended-insert --compact [options]... DB_name
+# or
+#mysqldump --no-data -u root -pmyPassword [options]... DB_name
 ~~~~
-or
-~~~~
-mysqldump --no-data -u root -pmyPassword myDB
-~~~~
-), run just
-~~~~
+
+1. Convert the dump to SQLite3 DB
+
+    ~~~~
 mysql2sqlite dump_mysql.sql | sqlite3 mysqlite3.db
 ~~~~
 
 ## Development
 
-The script is POSIX-compliant and depends only on *sh* and *awk* (tested with gawk, original awk, and the lightning fast mawk).
+The script is POSIX-compliant and depends only on *awk* (tested with gawk, but should work with original awk, and the lightning fast mawk).
 
-It's based on the newest fork (https://gist.github.com/bign8/9055981/05e65fd90c469c5eaa730823910c0c5f9de40ab4) of the original `mysql2sqlite.sh` (https://gist.github.com/esperlu/943776/be469f0a0ab8962350f3c5ebe8459218b915f817) with the following patches:
+It's originally based on the newest fork (https://gist.github.com/bign8/9055981/05e65fd90c469c5eaa730823910c0c5f9de40ab4) of the original `mysql2sqlite.sh` (https://gist.github.com/esperlu/943776/be469f0a0ab8962350f3c5ebe8459218b915f817) with the following patches:
 
 * fix the non-standard `COMMENT` field statement removal
 * ignore `CREATE DATABASE` statements (`USE` statements were already ignored)
