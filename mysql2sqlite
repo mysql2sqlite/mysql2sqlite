@@ -16,6 +16,16 @@ BEGIN {
   print "BEGIN TRANSACTION;"
 }
 
+function bit_to_int(str_bit,   powtwo, i, res) {
+  powtwo = 1
+  # 011101 = 1*2^0 + 0*2^1 + 1*2^2 ...
+  for (i = length(str_bit); i > 0; --i) {
+    res = res + substr(str_bit, i, 1) * powtwo
+    powtwo = powtwo * 2
+  }
+  return res
+}
+
 # CREATE TRIGGER statements have funny commenting. Remember we are in trigger.
 /^\/\*.*(CREATE.*TRIGGER|create.*trigger)/ {
   gsub( /^.*(TRIGGER|trigger)/, "CREATE TRIGGER" )
@@ -33,15 +43,15 @@ inTrigger != 0 { print; next }
   inView = 1
   next
 }
-# The end of CREATE VIEW
+# end of CREATE VIEW
 /^(\).*(ENGINE|engine).*\*\/;)/ {
   inView = 0;
   next
 }
-# The rest of view just get passed through
+# content of CREATE VIEW
 inView != 0 { next }
 
-# Skip other comments
+# skip comments
 /^\/\*/ { next }
 
 # Print all `INSERT` lines. The single quotes are protected by another single quote.
@@ -98,14 +108,19 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     aInc = 1;
     gsub( /AUTO_INCREMENT|auto_increment/, "PRIMARY KEY AUTOINCREMENT" )
   }
-  gsub( /(UNIQUE KEY|unique key) `.*` /, "UNIQUE " )
+  gsub( /(UNIQUE KEY|unique key) (`.*`|".*") /, "UNIQUE " )
   gsub( /(CHARACTER SET|character set) [^ ]+[ ,]/, "" )
   gsub( /DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP|default current_timestamp on update current_timestamp/, "" )
   gsub( /(COLLATE|collate) [^ ]+ /, "" )
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
-  gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
+  gsub( /` [^ ]*(INT|int|BIT|bit)[^ ]*/, "` integer" )
+  gsub( /" [^ ]*(INT|int|BIT|bit)[^ ]*/, "\" integer" )
+  ere_bit_field = "[bB]'[10]+'"
+  if ( match($0, ere_bit_field) ) {
+    sub(ere_bit_field, bit_to_int(substr($0, RSTART +2, RLENGTH -2 -1)))
+  }
   # field comments are not supported
   gsub( / (COMMENT|comment).+$/, "" )
   # Get commas off end of line
