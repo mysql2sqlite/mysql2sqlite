@@ -5,7 +5,7 @@
 BEGIN {
   if (ARGC != 2) {
       printf "%s\n%s\n",
-          "USAGE: mysql2sqlite.sh dump_mysql.sql > dump_sqlite3.sql",
+          "USAGE: mysql2sqlite dump_mysql.sql > dump_sqlite3.sql",
     "       file name - (dash) is not supported, because - means stdin" > "/dev/stderr"
       err=1  # do not execute the END rule
       exit 1
