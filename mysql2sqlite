@@ -47,12 +47,16 @@ inView != 0 { next }
 # Print all `INSERT` lines. The single quotes are protected by another single quote.
 ( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert)/ {
   prev = "";
-  gsub( /\\\047/, "\047\047" )  # single quote
-  gsub( /\\\047\047,/, "\\\047," )
+
+  # transform escaped single quotes to two single quotes while preserving the preceeding escaped backslashes
+  while ( match( $0, /([^\\](\\\\)*)\\\047/ ) ) {
+    $0=gensub( /([^\\](\\\\)*)\\\047/, "\\1\047\047", "G")
+  }
+
+  gsub( /\\\\/, "\\" ) # escaped backslashes
   gsub( /\\n/, "\n" )
   gsub( /\\r/, "\r" )
   gsub( /\\"/, "\"" )
-  gsub( /\\\\/, "\\" )
   gsub( /\\\032/, "\032" )  # substitute
   # sqlite3 is limited to 16 significant digits of precision
   while ( match( $0, /0x[0-9a-fA-F]{17}/ ) ) {
@@ -105,6 +109,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
+  gsub( /USING BTREE|using btree/, "" )
   gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
   # field comments are not supported
   gsub( / (COMMENT|comment).+$/, "" )
