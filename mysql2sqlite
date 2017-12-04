@@ -16,6 +16,13 @@ BEGIN {
   print "BEGIN TRANSACTION;"
 }
 
+# Declare white-space only lines as empty
+{
+    if ( match( prev, /^\s+$/ ) ) {
+        prev=""
+    }
+}
+
 # CREATE TRIGGER statements have funny commenting. Remember we are in trigger.
 /^\/\*.*(CREATE.*TRIGGER|create.*trigger)/ {
   gsub( /^.*(TRIGGER|trigger)/, "CREATE TRIGGER" )
@@ -105,7 +112,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
-  gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
+  gsub( /` +[^ ]*(INT|int)[^ ]*/, "` integer" )
   # field comments are not supported
   gsub( / (COMMENT|comment).+$/, "" )
   # Get commas off end of line
