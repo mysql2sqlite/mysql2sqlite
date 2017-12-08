@@ -18,7 +18,7 @@ BEGIN {
 
 # Declare white-space only lines as empty
 {
-    if ( match( prev, /^\s+$/ ) ) {
+    if ( match( prev, /^[[:space:]]+$/ ) ) {
         prev=""
     }
 }
