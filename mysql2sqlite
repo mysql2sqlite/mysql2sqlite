@@ -16,6 +16,13 @@ BEGIN {
   print "BEGIN TRANSACTION;"
 }
 
+# Declare white-space only lines as empty
+{
+    if ( match( prev, /^[[:space:]]+$/ ) ) {
+        prev=""
+    }
+}
+
 # CREATE TRIGGER statements have funny commenting. Remember we are in trigger.
 /^\/\*.*(CREATE.*TRIGGER|create.*trigger)/ {
   gsub( /^.*(TRIGGER|trigger)/, "CREATE TRIGGER" )
@@ -105,7 +112,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
-  gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
+  gsub( /` +[^ ]*(INT|int)[^ ]*/, "` integer" )
   # field comments are not supported
   gsub( / (COMMENT|comment).+$/, "" )
   # Get commas off end of line
@@ -174,11 +181,11 @@ END {
   print "END TRANSACTION;"
 
   if ( hexIssue ){
-    print "WARN Hexadecimal numbers longer than 16 characters has been trimmed." | "cat >&2"
+    print "WARN Hexadecimal numbers longer than 16 characters have been trimmed." | "cat >&2"
   }
   if ( caseIssue ){
     print "WARN Pure sqlite identifiers are case insensitive (even if quoted\n" \
-          "     or if ASCII) and doesnt cross-check TABLE and TEMPORARY TABLE\n" \
+          "     or if ASCII) and do not cross-check TABLE and TEMPORARY TABLE\n" \
           "     identifiers. Thus expect errors like \"table T has no column named F\"." | "cat >&2"
   }
 }
