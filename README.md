@@ -20,7 +20,7 @@ Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` stat
 
 ## Development
 
-The script is POSIX-compliant and depends only on *awk* (tested with gawk, but should work with original awk, and the lightning fast mawk).
+The script is written in *awk* (tested with gawk, but should work with original awk, and the lightning fast mawk) and shall be fully POSIX compliant.
 
 It's originally based on the newest fork (https://gist.github.com/bign8/9055981/05e65fd90c469c5eaa730823910c0c5f9de40ab4) of the original `mysql2sqlite.sh` (https://gist.github.com/esperlu/943776/be469f0a0ab8962350f3c5ebe8459218b915f817) with the following patches:
 
@@ -46,4 +46,4 @@ MIT
 * many different contributors forked the gist and made wildly varying changes, because @esperlu stopped working on it and didn't respond
 * @dumblob took over in Aug 2015 and applied the most important patches from all the forks as well as many his own patches tested on Drupal DB
 * @dumblob added the MIT license under assumption, that the original gist was released into public domain, because despite significant changes, it wasn't clean room engineering.
-* 2016-05-11 17:32 GMT+2 [@esperlu declared](https://github.com/dumblob/mysql2sqlite/issues/2 ) MIT as a fitting license (also retrospectively) and the [original gist](https://gist.github.com/esperlu/943776 ) as deprecated.
+* 2016-05-11 17:32 UTC+2 [@esperlu declared](https://github.com/dumblob/mysql2sqlite/issues/2 ) MIT as a fitting license (also retrospectively) and the [original gist](https://gist.github.com/esperlu/943776 ) as deprecated.
