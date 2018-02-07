@@ -7,9 +7,9 @@ Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` stat
 1. Dump MySQL DB
 
     ~~~~
-    mysqldump --skip-extended-insert --compact [options]... DB_name
+    mysqldump --skip-extended-insert --compact [options]... DB_name > dump_mysql.sql
     # or
-    #mysqldump --no-data -u root -pmyPassword [options]... DB_name
+    #mysqldump --no-data -u root -pmyPassword [options]... DB_name > dump_mysql.sql
     ~~~~
 
 1. Convert the dump to SQLite3 DB
