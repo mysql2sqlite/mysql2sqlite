@@ -100,6 +100,9 @@ inView != 0 { next }
 # skip comments
 /^\/\*/ { next }
 
+# skip PARTITION statements
+/^ *[(]?(PARTITION|partition) +[^ ]+/ { next }
+
 # print all INSERT lines
 ( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert)/ {
   prev = ""
