@@ -184,6 +184,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   #   UPDATE Package SET LastUpdate = CURRENT_TIMESTAMP WHERE ActionId = old.ActionId;
   #   END
   gsub( /ON UPDATE CURRENT_TIMESTAMP|on update current_timestamp/, "" )
+  gsub( /(DEFAULT|default) (CURRENT_TIMESTAMP|current_timestamp)\(\)/, "DEFAULT current_timestamp")
   gsub( /(COLLATE|collate) [^ ]+ /, "" )
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
