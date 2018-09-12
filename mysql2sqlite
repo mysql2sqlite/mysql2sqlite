@@ -104,7 +104,7 @@ inView != 0 { next }
 /^ *[(]?(PARTITION|partition) +[^ ]+/ { next }
 
 # print all INSERT lines
-( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert)/ {
+( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert|REPLACE|replace)/ {
   prev = ""
 
   # first replace \\ by \_ that mysqldump never generates to deal with
