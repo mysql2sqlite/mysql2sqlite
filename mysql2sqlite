@@ -146,7 +146,7 @@ inView != 0 { next }
       NR ": WARN Potential case sensitivity issues with table/column naming\n" \
       "          (see INFO at the end)." )
   }
-  if( match( $0, /`[^`]+/ ) ){
+  if( match( $0, /["`][^"`]+/ ) ){
     tableName = substr( $0, RSTART+1, RLENGTH-1 )
   }
   aInc = 0
@@ -249,7 +249,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     print
   }
   else {
-    if( match( $0, /`[^`]+/ ) ){
+    if( match( $0, /["`][^"`]+/ ) ){
       indexName = substr( $0, RSTART+1, RLENGTH-1 )
     }
     if( match( $0, /\([^()]+/ ) ){
