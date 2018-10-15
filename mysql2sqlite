@@ -207,13 +207,6 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
       print "," prev
     }
   }
-  else {
-    # FIXME check if this is correct in all cases
-    if( match( $1,
-        /(CONSTRAINT|constraint) \".*\" (FOREIGN KEY|foreign key)/ ) ){
-      print ","
-    }
-  }
   prev = $1
 }
 
