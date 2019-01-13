@@ -101,5 +101,25 @@ cat <<\SQL
  PARTITION p7 VALUES LESS THAN (2013) ENGINE = InnoDB)
 SQL
 
+cat <<\SQLin
+CREATE TABLE `CCC`(
+  `created` datetime DEFAULT current_timestamp(),
+  `updated` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+);
+SQLin
+
+cat <<\SQLout
+PRAGMA synchronous = OFF;
+PRAGMA journal_mode = MEMORY;
+BEGIN TRANSACTION;
+CREATE TABLE `CCC`(
+  `created` datetime DEFAULT current_timestamp
+,  `updated` datetime DEFAULT current_timestamp 
+);
+END TRANSACTION;
+SQLout
+
+
 cat <<\SQL
 SQL
+
