@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/sh
 
 M2S=./mysql2sqlite
 S=sqlite3
