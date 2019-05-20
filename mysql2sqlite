@@ -218,7 +218,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   prev = $1
 }
 
-/ ENGINE| engine/ {
+/ ENGINE| engine|\);/ {
   if( prev ){
     if( firstInTable ){
       print prev
