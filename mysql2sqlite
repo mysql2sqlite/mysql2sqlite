@@ -195,6 +195,10 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   if( match($0, ere_bit_field) ){
     sub( ere_bit_field, bit_to_int( substr( $0, RSTART +2, RLENGTH -2 -1 ) ) )
   }
+
+  #remove USING BTREE and other suffixes for USING, for example: "UNIQUE KEY `hostname_domain` (`hostname`,`domain`) USING BTREE,"
+  gsub( / USING [^, ]+/, "" )
+
   # field comments are not supported
   gsub( / (COMMENT|comment).+$/, "" )
   # Get commas off end of line
