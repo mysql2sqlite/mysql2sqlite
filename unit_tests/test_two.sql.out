@@ -1,0 +1,12 @@
+PRAGMA synchronous = OFF;
+PRAGMA journal_mode = MEMORY;
+BEGIN TRANSACTION;
+CREATE TABLE "bit_type" (
+  "a" integer  NOT NULL PRIMARY KEY AUTOINCREMENT
+,  "b" integer NOT NULL DEFAULT 1
+,  "c" integer NOT NULL DEFAULT 255
+,  "d" integer NOT NULL DEFAULT 10
+,  "e" integer NOT NULL DEFAULT 32647
+,  "f" integer  NOT NULL PRIMARY KEY AUTOINCREMENT
+);
+END TRANSACTION;
