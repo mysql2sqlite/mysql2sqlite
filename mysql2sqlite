@@ -196,7 +196,8 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     sub( ere_bit_field, bit_to_int( substr( $0, RSTART +2, RLENGTH -2 -1 ) ) )
   }
 
-  #remove USING BTREE and other suffixes for USING, for example: "UNIQUE KEY `hostname_domain` (`hostname`,`domain`) USING BTREE,"
+  # remove USING BTREE and other suffixes for USING, for example: "UNIQUE KEY
+  # `hostname_domain` (`hostname`,`domain`) USING BTREE,"
   gsub( / USING [^, ]+/, "" )
 
   # field comments are not supported
