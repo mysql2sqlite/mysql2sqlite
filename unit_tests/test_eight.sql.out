@@ -1,0 +1,9 @@
+PRAGMA synchronous = OFF;
+PRAGMA journal_mode = MEMORY;
+BEGIN TRANSACTION;
+CREATE TABLE `scimag` (
+  `ID` integer  NOT NULL PRIMARY KEY AUTOINCREMENT
+,  `DOI` varchar(200) NOT NULL
+,  UNIQUE (`DOI`)
+);
+END TRANSACTION;
