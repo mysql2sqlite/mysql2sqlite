@@ -122,7 +122,8 @@ inView != 0 { next }
   gsub( /\\_/, "\\" )
 
   # sqlite3 is limited to 16 significant digits of precision
-  while( match( $0, /0x[0-9a-fA-F]{17}/ ) ){
+  # we repeat the regex 17 times instead of using {17} for mawk compatibility
+  while( match( $0, /0x[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]/ ) ){
     hexIssue = 1
     sub( /0x[0-9a-fA-F]+/, substr( $0, RSTART, RLENGTH-1 ), $0 )
   }
