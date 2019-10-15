@@ -121,5 +121,10 @@ SQLout
 
 
 cat <<\SQL
+CREATE TABLE `scimag` (
+  `ID` int(15) unsigned NOT NULL AUTO_INCREMENT,
+  `DOI` varchar(200) NOT NULL,
+  PRIMARY KEY (`ID`) USING BTREE,
+  UNIQUE KEY `DOIUNIQUE` (`DOI`) USING BTREE,
+);
 SQL
-
