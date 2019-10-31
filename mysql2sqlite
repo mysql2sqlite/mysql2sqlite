@@ -157,7 +157,7 @@ inView != 0 { next }
 }
 
 # Replace `FULLTEXT KEY` (probably other `XXXXX KEY`)
-/^  (FULLTEXT KEY|fulltext key)/ { gsub( /.+(KEY|key)/, "  KEY" ) }
+/^  (FULLTEXT KEY|fulltext key)/ { gsub( /[A-Za-z ]+(KEY|key)/, "  KEY" ) }
 
 # Get rid of field lengths in KEY lines
 / (PRIMARY |primary )?(KEY|key)/ { gsub( /\([0-9]+\)/, "" ) }
