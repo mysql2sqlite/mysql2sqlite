@@ -216,7 +216,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   else {
     # FIXME check if this is correct in all cases
     if( match( $1,
-        /(CONSTRAINT|constraint) \".*\" (FOREIGN KEY|foreign key)/ ) ){
+        /(CONSTRAINT|constraint) ["].*["] (FOREIGN KEY|foreign key)/ ) ){
       print ","
     }
   }
