@@ -18,6 +18,8 @@ Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` stat
     ./mysql2sqlite dump_mysql.sql | sqlite3 mysqlite3.db
     ~~~~
 
+(both `mysql2sqlite` and `sqlite3` might write something to stdout and stderr - e.g. `memory` coming from `PRAGMA journal_mode = MEMORY;` is not harmful)
+
 ## Development
 
 The script is written in *awk* (tested with gawk, but should work with original awk, and the lightning fast mawk) and shall be fully POSIX compliant.
