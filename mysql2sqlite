@@ -189,6 +189,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   gsub( /(ENUM|enum)[^)]+\)/, "text " )
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
+  gsub( /_utf8mb3/, "" )
   gsub( /` [^ ]*(INT|int|BIT|bit)[^ ]*/, "` integer" )
   gsub( /" [^ ]*(INT|int|BIT|bit)[^ ]*/, "\" integer" )
   ere_bit_field = "[bB]'[10]+'"
