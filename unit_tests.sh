@@ -129,11 +129,11 @@ CREATE TABLE `scimag` (
 );
 SQL
 
-cat <<\SQL
+cat <<\SQLin
 CREATE TABLE `scimag` (
   `ID` int(15) unsigned NOT NULL AUTO_INCREMENT,
   `DOI` varchar(200) NOT NULL,
-  `TEXTFIELD` TEXT DEFAULT ('text_value'),
+  `TEXTFIELD` text DEFAULT (_utf8mb3'text_value'),
   PRIMARY KEY (`ID`) USING BTREE,
   UNIQUE KEY `DOIUNIQUE` (`DOI`) USING BTREE,
 );
