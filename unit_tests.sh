@@ -137,4 +137,17 @@ CREATE TABLE `scimag` (
   PRIMARY KEY (`ID`) USING BTREE,
   UNIQUE KEY `DOIUNIQUE` (`DOI`) USING BTREE,
 );
-SQL
+SQLin
+
+cat <<\SQLout
+PRAGMA synchronous = OFF;
+PRAGMA journal_mode = MEMORY;
+BEGIN TRANSACTION;
+CREATE TABLE `scimag` (
+  `ID` integer  NOT NULL PRIMARY KEY AUTOINCREMENT
+,  `DOI` varchar(200) NOT NULL
+,  `TEXTFIELD` text DEFAULT ('text_value')
+,  UNIQUE (`DOI`)
+);
+END TRANSACTION;
+SQLout
