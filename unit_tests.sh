@@ -128,3 +128,19 @@ CREATE TABLE `scimag` (
   UNIQUE KEY `DOIUNIQUE` (`DOI`) USING BTREE,
 );
 SQL
+
+cat <<\SQLin
+CREATE TABLE `scimag` (
+  `TEXTFIELD` text DEFAULT (_utf8mb3'text_value'),
+);
+SQLin
+
+cat <<\SQLout
+PRAGMA synchronous = OFF;
+PRAGMA journal_mode = MEMORY;
+BEGIN TRANSACTION;
+CREATE TABLE `scimag` (
+  `TEXTFIELD` text DEFAULT ('text_value')
+);
+END TRANSACTION;
+SQLout
