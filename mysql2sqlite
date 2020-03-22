@@ -112,6 +112,9 @@ inView != 0 { next }
   # After we convert all escapes we replace \_ by backslashes.
   gsub( /\\\\/, "\\_" )
 
+  # empty strings are delimited by double quote rather than single quotes,
+  # thus the regex to extract values will be simpler
+  gsub( /''/, "\"\"" )
   # single quotes are escaped by another single quote
   gsub( /\\'/, "''" )
   gsub( /\\n/, "\n" )
@@ -121,16 +124,53 @@ inView != 0 { next }
 
   gsub( /\\_/, "\\" )
 
-  # sqlite3 is limited to 16 significant digits of precision
-  while( match( $0, /0x[0-9a-fA-F]{17}/ ) ){
-    hexIssue = 1
-    sub( /0x[0-9a-fA-F]+/, substr( $0, RSTART, RLENGTH-1 ), $0 )
-  }
-  if( hexIssue ){
-    printerr( \
-      NR ": WARN Hex number trimmed (length longer than 16 chars)." )
+  # get content of VALUES statement
+  if( match( $0, /VALUES \((.*)\);$/ ) ) {
+    valuesStart = RSTART
+    remaining = substr($0, RSTART+8, RLENGTH-10 )
+    
+    # get each individual value
     hexIssue = 0
+    insValues = ""
+    # find values delimited by commas. Only 2 possibilities: not a string | a string
+    while( match( remaining, /(^[^',]+(,|$))|(^'([^']|'')+'(,|$))/ ) ) {
+      if( RLENGTH == length(remaining) ) {
+        # it is the last value, so we don't add a comma after
+        valLen = RLENGTH
+        comma = ""
+      }
+      else {
+        valLen = RLENGTH-1
+        comma = ","
+      }
+
+      # now we have the value that will be inserted!
+      val = substr(remaining, RSTART, valLen)
+
+      # truncate remaining to keep only unprocessed part
+      remaining = substr(remaining, RSTART+RLENGTH)
+
+      # convert hex number to hex string if needed
+      if( match( val, /^0x[0-9a-fA-F]+$/ ) ) {
+        hexIssue = 1
+        hexStart = RSTART+2
+        hexLen = RLENGTH-2
+        zeroFiller = hexLen % 2 == 1 ? "0" : ""
+        val = "x'" zeroFiller substr( val, hexStart, hexLen ) "'"
+      }
+
+      # concat the modified value to the previous ones
+      insValues = insValues val comma
+    }
+    # replace VALUES statement with modified statement
+    $0 = substr( $0, 0, valuesStart-1 ) "VALUES (" insValues ");" 
+    
+    if( hexIssue ){
+      printerr( \
+        NR ": WARN Hex number converted to hex string (see mysqldump --hex-blob option)." )
+    }
   }
+
   print
   next
 }
