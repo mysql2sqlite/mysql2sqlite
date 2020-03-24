@@ -13,6 +13,17 @@ type "$S" >/dev/null 2>&1 || {
   exit 1
 }
 
+# test data types conversion
+# No tests for Spatial and JSON data types, as they require an extension of Sqlite
+# dump was produced using `sudo mysqldump --skip-extended-insert --hex-blob --compact --single-transaction testtypes > unit_tests/dump.sql`
+OUT_script=unit_tests/test_dump.sqlite
+OUT_database=unit_tests/test_db.sqlite
+rm $OUT_script
+$M2S unit_tests/dump.sql > $OUT_script
+cmp unit_tests/dump.sqlite $OUT_script
+cat $OUT_script | sqlite3 $OUT_DATABASE
+
+
 # FIXME
 printf 'ERR Unit testing not yet fully implemented\n' >&2
 exit 1
