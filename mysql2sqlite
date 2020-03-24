@@ -90,7 +90,7 @@ inTrigger != 0 { print; next }
   next
 }
 # end of CREATE VIEW
-/^(\).*(ENGINE|engine).*\*\/;)/ {
+/^([)].*(ENGINE|engine).*\*\/;)/ {
   inView = 0
   next
 }
@@ -104,7 +104,7 @@ inView != 0 { next }
 /^ *[(]?(PARTITION|partition) +[^ ]+/ { next }
 
 # print all INSERT lines
-( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert|REPLACE|replace)/ {
+( /^ *[(]/ && /[)] *[,;] *$/ ) || /^(INSERT|insert|REPLACE|replace)/ {
   prev = ""
 
   # first replace \\ by \_ that mysqldump never generates to deal with
@@ -201,7 +201,7 @@ inView != 0 { next }
 /^  (FULLTEXT KEY|fulltext key)/ { gsub( /[A-Za-z ]+(KEY|key)/, "  KEY" ) }
 
 # Get rid of field lengths in KEY lines
-/ (PRIMARY |primary )?(KEY|key)/ { gsub( /\([0-9]+\)/, "" ) }
+/ (PRIMARY |primary )?(KEY|key)/ { gsub( /[(][0-9]+[)]/, "" ) }
 
 aInc == 1 && /PRIMARY KEY|primary key/ { next }
 
@@ -209,7 +209,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
 / (COLLATE|collate) [a-z0-9_]*/ { gsub( /(COLLATE|collate) [a-z0-9_]*/, "COLLATE BINARY" ) }
 
 # Print all fields definition lines except the `KEY` lines.
-/^  / && !/^(  (KEY|key)|\);)/ {
+/^  / && !/^(  (KEY|key)|[)];)/ {
   if( match( $0, /[^"`]AUTO_INCREMENT|auto_increment[^"`]/) ){
     aInc = 1
     gsub( /AUTO_INCREMENT|auto_increment/, "PRIMARY KEY AUTOINCREMENT" )
@@ -224,11 +224,11 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   #   BEGIN
   #   UPDATE Package SET LastUpdate = CURRENT_TIMESTAMP WHERE ActionId = old.ActionId;
   #   END
-  gsub( /(ON|on) (UPDATE|update) (CURRENT_TIMESTAMP|current_timestamp)(\(\))?/, "" )
-  gsub( /(DEFAULT|default) (CURRENT_TIMESTAMP|current_timestamp)(\(\))?/, "DEFAULT current_timestamp")
+  gsub( /(ON|on) (UPDATE|update) (CURRENT_TIMESTAMP|current_timestamp)([(][)])?/, "" )
+  gsub( /(DEFAULT|default) (CURRENT_TIMESTAMP|current_timestamp)([(][)])?/, "DEFAULT current_timestamp")
   gsub( /(COLLATE|collate) [^ ]+ /, "" )
-  gsub( /(ENUM|enum)[^)]+\)/, "text " )
-  gsub( /(SET|set)\([^)]+\)/, "text " )
+  gsub( /(ENUM|enum)[(][^)]+[)]/, "text " )
+  gsub( /(SET|set)[(][^)]+[)]/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
   gsub( /_utf8mb3/, "" )
   gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
@@ -280,7 +280,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
 # `KEY` lines are extracted from the `CREATE` block and stored in array for later print
 # in a separate `CREATE KEY` command. The index name is prefixed by the table name to
 # avoid a sqlite error for duplicate index name.
-/^(  (KEY|key)|\);)/ {
+/^(  (KEY|key)|[)];)/ {
   if( prev ){
     if( firstInTable ){
       print prev
@@ -298,7 +298,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     if( match( $0, /`[^`]+/ ) ){
       indexName = substr( $0, RSTART+1, RLENGTH-1 )
     }
-    if( match( $0, /\([^()]+/ ) ){
+    if( match( $0, /[(][^()]+/ ) ){
       indexKey = substr( $0, RSTART+1, RLENGTH-1 )
     }
     # idx_ prefix to avoid name clashes (they really happen!)
