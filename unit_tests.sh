@@ -3,7 +3,7 @@
 M2S=./mysql2sqlite
 S=sqlite3
 X=xxd
-M=md5sum
+H=md5sum
 B64=base64
 
 type "$S" >/dev/null 2>&1 || {
@@ -16,8 +16,8 @@ type "$X" >/dev/null 2>&1 || {
   exit 1
 }
 
-type "$M" >/dev/null 2>&1 || {
-  printf 'ERR command "%s" not available\n' "$M" >&2
+type "$H" >/dev/null 2>&1 || {
+  printf 'ERR command "%s" not available\n' "$H" >&2
   exit 1
 }
 
@@ -98,7 +98,7 @@ assert_query "SELECT char, varchar, \`set\`, enum FROM teststring;" \
              "Z|a varchar for test that can be 0x2D char long|c|MAYBE" \
              $OUT_database
 assert_query "SELECT text FROM teststring;" \
-             "text field content Lorem ipsum parabellum rectum and toutletoutim
+             "text field content Lorem ipsum parabellum rectum et toutletoutim
 We can also add some quotes ' double quotes '' doublequote \" and double doublequote \"\"
 Why not some escape \\' \\'' \\\" \\\"\"
 And some hexa 0xBAD
@@ -124,21 +124,27 @@ assert_query "SELECT id, name, weight FROM testmultirows WHERE id=2;" \
 # A picture was inserted into database as a binary blob, and the same picture was inserted as base64 text :
 # data is retrieved from database, then dumped in 2 files (to ease debug in case of failure), and then
 # files hash are compared to ensure that they are identical
+for i in $(seq 1 2); do
+  OUT_picblob=$UT/test_picture_blob.png
+  picblob=$(query "SELECT HEX(picture) FROM testmultirows WHERE id=$i;" $OUT_database)
+  echo $picblob | $X -r -p > $OUT_picblob
+  md5blob=$($H $OUT_picblob | awk '{ print $1 }')
 
-OUT_picblob=$UT/test_picture_blob.png
-picblob=$(query "SELECT HEX(picture) FROM testmultirows WHERE id=1;" $OUT_database)
-echo $picblob | $X -r -p > $OUT_picblob
-md5blob=$($M $OUT_picblob | awk '{ print $1 }')
+  OUT_picb64=$UT/test_picture_base64.png
+  picb64=$(query "SELECT base64picture FROM testmultirows WHERE id=$i;" $OUT_database)
+  echo $picb64 | $B64 -d > $OUT_picb64
+  md5b64=$($H $OUT_picb64 | awk '{ print $1 }')
 
-OUT_picb64=$UT/test_picture_base64.png
-picb64=$(query "SELECT base64picture FROM testmultirows WHERE id=1;" $OUT_database)
-echo $picb64 | $B64 -d > $OUT_picb64
-md5b64=$($M $OUT_picb64 | awk '{ print $1 }')
-
-if [ "$md5blob" != "$md5b64" ]; then
-  printf '\nFAILURE:\n\tPicture got corrupted, either as BLOB or as base64 TEXT\n\t    picture from blob   dumped at  %s\n\t    picture from base64 dumped at  %s\n' "$OUT_picblob" "$OUT_picb64" >&2
-  exit 1
-fi
+  # compare blob's md5 with md5 of empty file, then with md5 of base64 file
+  if [ "$md5blob" = "d41d8cd98f00b204e9800998ecf8427e" ]; then
+    printf '\nFAILURE:\n\tPicture %d was erased (BLOB is empty)\n' $i >&2
+    exit 1
+  fi
+  if [ "$md5blob" != "$md5b64" ]; then
+    printf '\nFAILURE:\n\tPicture %d got corrupted, either as BLOB or as base64 TEXT\n\t    picture from blob   dumped at  %s\n\t    picture from base64 dumped at  %s\n' $i "$OUT_picblob" "$OUT_picb64" >&2
+    exit 1
+  fi
+done
 
 
 # FIXME
