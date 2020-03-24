@@ -122,16 +122,20 @@ inView != 0 { next }
   gsub( /\\_/, "\\" )
 
   # get content of VALUES statement
-  if( match( $0, /VALUES \((.*)\);$/ ) ) {
+  if( match( $0, /(VALUES|values) +[(].*[)];$/ ) ) {
     valuesStart = RSTART
-    remaining = substr($0, RSTART+8, RLENGTH-10 )
+    valuesStatement = substr( $0, RSTART, RLENGTH )
+
+    # remove the "VALUES (" prefix and the ");" suffix
+    match( valuesStatement, /[(].*[)];$/ )
+    remaining = substr( valuesStatement, RSTART+1, RLENGTH-3 )
     
     # get each individual value
     hexIssue = 0
     insValues = ""
     # find values delimited by commas. Only 2 possibilities: not a string | a string
     while( match( remaining, /(^[^',]+(,|$))|(^'([^']|'')*'(,|$))/ ) ) {
-      if( RLENGTH == length(remaining) ) {
+      if( RLENGTH == length( remaining ) ) {
         # it is the last value, so we don't add a comma after
         valLen = RLENGTH
         comma = ""
@@ -142,10 +146,10 @@ inView != 0 { next }
       }
 
       # now we have the value that will be inserted!
-      val = substr(remaining, RSTART, valLen)
+      val = substr( remaining, RSTART, valLen )
 
       # truncate remaining to keep only unprocessed part
-      remaining = substr(remaining, RSTART+RLENGTH)
+      remaining = substr( remaining, RSTART+RLENGTH )
 
       # convert hex number to hex string if needed
       if( match( val, /^0x[0-9a-fA-F]+$/ ) ) {
