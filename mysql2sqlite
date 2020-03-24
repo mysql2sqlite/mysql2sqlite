@@ -231,12 +231,10 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   gsub( /(SET|set)\([^)]+\)/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
   gsub( /_utf8mb3/, "" )
-  gsub( /` [^ ]*(INT|int|BIT|bit)[^ ]*/, "` integer" )
-  gsub( /" [^ ]*(INT|int|BIT|bit)[^ ]*/, "\" integer" )
-  ere_bit_field = "[bB]'[10]+'"
-  if( match($0, ere_bit_field) ){
-    sub( ere_bit_field, bit_to_int( substr( $0, RSTART +2, RLENGTH -2 -1 ) ) )
-  }
+  gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
+  gsub( /" [^ ]*(INT|int)[^ ]*/, "\" integer" )
+  gsub( /` [^ ]*(BIT|bit)[^ ]*/, "` blob" )
+  gsub( /" [^ ]*(BIT|bit)[^ ]*/, "\" blob" )
 
   # remove USING BTREE and other suffixes for USING, for example: "UNIQUE KEY
   # `hostname_domain` (`hostname`,`domain`) USING BTREE,"
