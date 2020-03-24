@@ -31,14 +31,14 @@ CREATE TABLE `testnumeric` (
   `mediumint` mediumint(9) DEFAULT NULL,
   `int` int(11) DEFAULT NULL,
   `bigint` bigint(20) DEFAULT NULL,
-  `decimal` decimal(5,2) DEFAULT NULL,
+  `decimal` decimal(20,2) DEFAULT NULL,
   `float` float DEFAULT NULL,
   `double` double DEFAULT NULL,
   `bit` bit(32) DEFAULT NULL,
   PRIMARY KEY (`tinyint`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `testnumeric` VALUES (127,32767,8388607,2147483647,9223372036854775807,999.99,-1.17549e-38,-2.2250738585072014e-308,0xFFFFFFFF);
+INSERT INTO `testnumeric` VALUES (127,32767,8388607,2147483647,9223372036854775807,988888888888888889.99,-1.17549e-38,-2.2250738585072014e-308,0xFFFFFFFF);
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `teststring` (
