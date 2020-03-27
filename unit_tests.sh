@@ -1,34 +1,16 @@
 #!/bin/sh
 
-M2S=./mysql2sqlite
-S=sqlite3
-X=xxd
-H=md5sum
-B64=base64
+# define newline char as a constant
+readonly NL='
+'
 
-type "$S" >/dev/null 2>&1 || {
-  printf 'ERR command "%s" not available\n' "$S" >&2
-  exit 1
-}
-
-type "$X" >/dev/null 2>&1 || {
-  printf 'ERR command "%s" not available\n' "$X" >&2
-  exit 1
-}
-
-type "$H" >/dev/null 2>&1 || {
-  printf 'ERR command "%s" not available\n' "$H" >&2
-  exit 1
-}
-
-type "$B64" >/dev/null 2>&1 || {
-  printf 'ERR command "%s" not available\n' "$B64" >&2
-  exit 1
-}
-
-[ -r "$M2S" ] || {
-  printf 'ERR file "%s" not found\n' "$M2S" >&2
-  exit 1
+# This function checks if given command is available on the system.
+# It will terminate the script if command is not found.
+assert_cmd_available() {
+  type "$1" >/dev/null 2>&1 || {
+    printf 'ERR command "%s" not available\n' "$1" >&2
+    exit 1
+  }
 }
 
 # This function simply run the given query on given database
@@ -36,12 +18,21 @@ type "$B64" >/dev/null 2>&1 || {
 # params: 
 #     1. the SQL query (as string)
 #     2. the .sqlite file to use as database for the query
+#     3. strict mode (as boolean). When in stric mode, a trailing '_' will be added to result to avoid
+#        trailing newlines to be truncated. It will be the caller's responsibility to remove this trailing underscore
 #
 query() {
-  QUERY="$1"
-  DB="$2"
-  RESULT=$(echo "$QUERY" | sqlite3 "$DB" 2>&1)
-  printf "$RESULT"
+  [ $# -eq 3 ] || printf 'USAGE: query <query> <dbfilename> <strict>\n'
+  query="$1"
+  db="$2"
+  strict="$3"
+  result="$(
+    printf '%s' "$query" | sqlite3 "$db" 2>&1;
+    if [ "$strict" = true ]; then 
+      printf '_'
+    fi
+  )"
+  printf "%s" "$result"
 }
 
 # This function will execute given query on given database, and compare the result of this query with given string
@@ -52,27 +43,48 @@ query() {
 #     3. the .sqlite file to use as database for the query
 #
 assert_query() {
-  QUERY="$1"
-  EXPECTED="$2"
-  DB="$3"
-  RESULT=$(query "$QUERY" "$DB")
-  if [ "$RESULT" != "$EXPECTED" ]; then
-    printf '\nFAILURE:\n\tQuery failed on %s\n\t    query\t"%s"\n\t    expected\t"%s"\n\t    but got\t"%s"\n' "$DB" "$QUERY" "$EXPECTED" "$RESULT" >&2
+  [ $# -eq 3 ] || printf 'USAGE: assert_query <query> <expected> <dbfilename>\n'
+  query="$1"
+  expected="$2"
+  db="$3"
+  result="$(query "$query" "$db" true)"   # we need to use stric mode to avoid losing newlines at the end of text fields
+  # remove trailing underscore and the last newline
+  result=${result%_}
+  result=${result%"$NL"}
+  # compare expected value with retrieved value
+  if [ "$result" != "$expected" ]; then
+    printf '\nFAILURE:\n\tQuery failed on %s\n\t    query\t"%s"\n\t    expected\t"%s"\n\t    but got\t"%s"\n' "$db" "$query" "$expected" "$result" >&2
     exit 1
   fi
 }
 
+# mandatory binaries, needed to run tests
+readonly M2S="./mysql2sqlite"
+readonly S="sqlite3"
+readonly X="xxd"
+readonly H="md5sum"
+readonly B64="base64"
+
+assert_cmd_available "$M2S"
+assert_cmd_available "$S"
+assert_cmd_available "$X"
+assert_cmd_available "$H"
+assert_cmd_available "$B64"
+
+
 # Convert SQL dump into sqlite script, and execute this script with sqlite3 to create a valid database file.
 # NB: dump was produced using `sudo mysqldump --skip-extended-insert --hex-blob --compact --single-transaction testtypes > unit_tests/dump.sql`
 #     To add tests in this dump, just import it into your MySQL instance and re-run the command above.
-UT=./unit_tests
-OUT_script=$UT/test_dump.sqlite
-OUT_database=$UT/test_db.sqlite
-rm $OUT_script 2> /dev/null
-rm $OUT_database 2> /dev/null
-$M2S $UT/dump.sql > $OUT_script
+readonly UT="./unit_tests"
+readonly OUT_SCRIPT="$UT/test_dump.sqlite"
+readonly OUT_DATABASE="$UT/test_db.sqlite"
+
+rm -- "$OUT_SCRIPT" 2> /dev/null
+rm -- "$OUT_DATABASE" 2> /dev/null
+"$M2S" "$UT/dump.sql" > "$OUT_SCRIPT"
+
 # create sqlite database using generated sqlite script
-cat $OUT_script | $S $OUT_database
+"$S" "$OUT_DATABASE" < "$OUT_SCRIPT"
 
 # Test data types conversion
 # No tests for Spatial and JSON data types, as they require an extension of Sqlite
@@ -80,70 +92,67 @@ cat $OUT_script | $S $OUT_database
 # numeric
 assert_query "SELECT tinyint, smallint, mediumint, int, bigint FROM testnumeric;" \
              "127|32767|8388607|2147483647|9223372036854775807" \
-             $OUT_database
+             "$OUT_DATABASE"
 assert_query "SELECT decimal, float, double FROM testnumeric;" \
              "988888888888888832|-1.17549e-38|-2.2250738585072e-308" \
-             $OUT_database
+             "$OUT_DATABASE"
 assert_query "SELECT HEX(bit) FROM testnumeric;" \
              "FFFFFFFF" \
-             $OUT_database
+             "$OUT_DATABASE"
 
 # datetime
 assert_query "SELECT * FROM testdatetime;" \
              "2020-03-24|838:59:59|9999-12-31 23:59:59|2038-01-19 02:14:07|2155" \
-             $OUT_database
+             "$OUT_DATABASE"
 
 # strings
 assert_query "SELECT char, varchar, \`set\`, enum FROM teststring;" \
              "Z|a varchar for test that can be 0x2D char long|c|MAYBE" \
-             $OUT_database
+             "$OUT_DATABASE"
 assert_query "SELECT text FROM teststring;" \
-             "text field content Lorem ipsum parabellum rectum et toutletoutim
-We can also add some quotes ' double quotes '' doublequote \" and double doublequote \"\"
-Why not some escape \\' \\'' \\\" \\\"\"
-And some hexa 0xBAD
-
-Now its done" \
-             $OUT_database
+             "text field content Lorem ipsum parabellum rectum et toutletoutim$NL We can also add some quotes ' double quotes '' doublequote \" and double doublequote \"\"$NL Why not some escape \\' \\'' \\\" \\\"\"$NL And some hexa 0xBAD$NL$NL Now its done$NL" \
+             "$OUT_DATABASE"
 assert_query "SELECT HEX(binary), HEX(varbinary) FROM teststring;" \
              "2B|61207661726368617220666F72207465737420746861742063616E20626520307832442063686172206C6F6E67" \
-             $OUT_database
+             "$OUT_DATABASE"
 assert_query "SELECT HEX(blob) FROM teststring;" \
              "74657874206669656C6420636F6E74656E74204C6F72656D20697073756D207061726162656C6C756D2072656374756D20616E6420746F75746C65746F7574696D" \
-             $OUT_database
+             "$OUT_DATABASE"
 
 # Test mutiple inserts
 assert_query "SELECT id, name, weight FROM testmultirows WHERE id=1;" \
              "1|Greg|125" \
-             $OUT_database
+             "$OUT_DATABASE"
 assert_query "SELECT id, name, weight FROM testmultirows WHERE id=2;" \
              "2|Mireille|52" \
-             $OUT_database
+             "$OUT_DATABASE"
 
 # Test that blobs and text in base64 format are not corrupted
 # A picture was inserted into database as a binary blob, and the same picture was inserted as base64 text :
 # data is retrieved from database, then dumped in 2 files (to ease debug in case of failure), and then
 # files hash are compared to ensure that they are identical
-for i in $(seq 1 2); do
-  OUT_picblob=$UT/test_picture_blob.png
-  picblob=$(query "SELECT HEX(picture) FROM testmultirows WHERE id=$i;" $OUT_database)
-  echo $picblob | $X -r -p > $OUT_picblob
-  md5blob=$($H $OUT_picblob | awk '{ print $1 }')
+i=1
+while [ "$i" -le 2 ]; do
+  out_picblob="$UT/test_picture_blob.png"
+  picblob="$(query 'SELECT HEX(picture) FROM testmultirows WHERE id='$i';' $OUT_DATABASE false)"  # no need for strict mode because hex cannot contain \n
+  printf "%s" "$picblob" | "$X" -r -p > "$out_picblob"
+  md5blob="$($H $out_picblob | awk '{ print $1 }')"
 
-  OUT_picb64=$UT/test_picture_base64.png
-  picb64=$(query "SELECT base64picture FROM testmultirows WHERE id=$i;" $OUT_database)
-  echo $picb64 | $B64 -d > $OUT_picb64
-  md5b64=$($H $OUT_picb64 | awk '{ print $1 }')
+  out_picb64="$UT/test_picture_base64.png"
+  picb64="$(query 'SELECT base64picture FROM testmultirows WHERE id='$i';' $OUT_DATABASE false)"  # no need for strict mode because base64 cannot contain \n
+  printf "%s" "$picb64" | "$B64" -d > "$out_picb64"
+  md5b64="$($H $out_picb64 | awk '{ print $1 }')"
 
   # compare blob's md5 with md5 of empty file, then with md5 of base64 file
   if [ "$md5blob" = "d41d8cd98f00b204e9800998ecf8427e" ]; then
-    printf '\nFAILURE:\n\tPicture %d was erased (BLOB is empty)\n' $i >&2
+    printf '\nFAILURE:\n\tPicture %d was erased (BLOB is empty)\n' "$i" >&2
     exit 1
   fi
   if [ "$md5blob" != "$md5b64" ]; then
-    printf '\nFAILURE:\n\tPicture %d got corrupted, either as BLOB or as base64 TEXT\n\t    picture from blob   dumped at  %s\n\t    picture from base64 dumped at  %s\n' $i "$OUT_picblob" "$OUT_picb64" >&2
+    printf '\nFAILURE:\n\tPicture %d got corrupted, either as BLOB or as base64 TEXT\n\t    picture from blob   dumped at  %s\n\t    picture from base64 dumped at  %s\n' "$i" "$OUT_picblob" "$OUT_picb64" >&2
     exit 1
   fi
+  i=$(( i + 1 ))
 done
 
 
