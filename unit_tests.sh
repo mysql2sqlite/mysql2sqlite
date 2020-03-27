@@ -27,10 +27,12 @@ query() {
   db="$2"
   strict="$3"
   result="$(
-    printf '%s' "$query" | sqlite3 "$db" 2>&1;
-    if [ "$strict" = true ]; then 
-      printf '_'
-    fi
+	sqlite3 "$db" 2>&1 <<-END
+		$query
+	END
+	if [ "$strict" = true ]; then 
+		printf '_'
+	fi
   )"
   printf "%s" "$result"
 }
@@ -58,17 +60,43 @@ assert_query() {
   fi
 }
 
+# This function dump the given hex string as binary in given file.
+# params: 
+#     1. the hexadecimal representation (as string)
+#     2. the file to write (as string)
+#
+hexstr_to_file() {
+  [ $# -eq 2 ] || printf 'USAGE: hexstr_to_file <hexstr> <filename>\n'
+  hexstr="$1"
+  filename="$2"
+  escapedstr="$(
+	$R 's/\(.\{2\}\)/\"\\\";\1;/g' <<-END
+		$hexstr
+	END
+  )"
+  result="$(
+	$X <<-END | tr -d '\n'
+		obase=8; ibase=16; $escapedstr
+	END
+  )"
+  printf "$result" > "$2"
+}
+
 # mandatory binaries, needed to run tests
 readonly M2S="./mysql2sqlite"
 readonly S="sqlite3"
-readonly X="xxd"
+readonly X="bc"
+readonly R="sed"
 readonly H="md5sum"
+readonly A="awk"
 readonly B64="base64"
 
 assert_cmd_available "$M2S"
 assert_cmd_available "$S"
 assert_cmd_available "$X"
+assert_cmd_available "$R"
 assert_cmd_available "$H"
+assert_cmd_available "$A"
 assert_cmd_available "$B64"
 
 
@@ -135,13 +163,13 @@ i=1
 while [ "$i" -le 2 ]; do
   out_picblob="$UT/test_picture_blob.png"
   picblob="$(query 'SELECT HEX(picture) FROM testmultirows WHERE id='$i';' $OUT_DATABASE false)"  # no need for strict mode because hex cannot contain \n
-  printf "%s" "$picblob" | "$X" -r -p > "$out_picblob"
-  md5blob="$($H $out_picblob | awk '{ print $1 }')"
+  hexstr_to_file "$picblob" "$out_picblob"
+  md5blob="$($H $out_picblob | $A '{ print $1 }')"
 
   out_picb64="$UT/test_picture_base64.png"
   picb64="$(query 'SELECT base64picture FROM testmultirows WHERE id='$i';' $OUT_DATABASE false)"  # no need for strict mode because base64 cannot contain \n
   printf "%s" "$picb64" | "$B64" -d > "$out_picb64"
-  md5b64="$($H $out_picb64 | awk '{ print $1 }')"
+  md5b64="$($H $out_picb64 | $A '{ print $1 }')"
 
   # compare blob's md5 with md5 of empty file, then with md5 of base64 file
   if [ "$md5blob" = "d41d8cd98f00b204e9800998ecf8427e" ]; then
