@@ -177,7 +177,7 @@ inView != 0 { next }
     hexIssue = 0
     insValues = ""
     # find values delimited by commas. Only 2 possibilities: not a string | a string
-    while( match( remaining, /(^[^',]+(,|$))|(^'([^']|'')*'(,|$))/ ) ) {
+    while( match( remaining, /(^[^'][^,]*(,|$))|(^'([^']|'')*'(,|$))/ ) ) {
       if( RLENGTH == length( remaining ) ) {
         # it is the last value, so we don't add a comma after
         valLen = RLENGTH
