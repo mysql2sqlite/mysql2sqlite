@@ -24,7 +24,7 @@ assert_cmd_available() {
   }
 }
 
-# This function creates a sqlite database using given sql script file.
+# This function creates a sqlite database using given sql script file. The file is put at $OUT_DATABASE.
 # It converts SQL dump into sqlite script, and executes this script with sqlite3 to create a valid database file.
 generate_db() {
   inputFile="$1"
@@ -34,21 +34,19 @@ generate_db() {
   sqlite3 "$OUT_DATABASE" < "$OUT_SCRIPT"
 }
 
-# This function simply run the given query on given database
+# This function simply run the given query on $OUT_DATABASE
 # It will print the result
 # params: 
 #     1. the SQL query (as string)
-#     2. the .sqlite file to use as database for the query
-#     3. strict mode (as boolean). When in stric mode, a trailing '_' will be added to result to avoid
+#     2. strict mode (as boolean). When in stric mode, a trailing '_' will be added to result to avoid
 #        trailing newlines to be truncated. It will be the caller's responsibility to remove this trailing underscore
 #
 query() {
-  [ $# -eq 3 ] || printf 'USAGE: query <query> <dbfilename> <strict>\n'
+  [ $# -eq 2 ] || printf 'USAGE: query <query> <strict>\n'
   query="$1"
-  db="$2"
-  strict="$3"
+  strict="$2"
   result="$(
-	sqlite3 "$db" 2>&1 <<-END
+	sqlite3 "$OUT_DATABASE" 2>&1 <<-END
 		$query
 	END
 	if [ "$strict" = true ]; then 
@@ -58,25 +56,23 @@ query() {
   printf "%s" "$result"
 }
 
-# This function will execute given query on given database, and compare the result of this query with given string
+# This function will execute given query on $OUT_DATABASE, and compare the result of this query with given string
 # It will print an error and terminate the script if the result does not match given string
 # params: 
 #     1. the SQL query (as string)
 #     2. the expected result of the query (as string)
-#     3. the .sqlite file to use as database for the query
 #
 assert_query() {
-  [ $# -eq 3 ] || printf 'USAGE: assert_query <query> <expected> <dbfilename>\n'
+  [ $# -eq 2 ] || printf 'USAGE: assert_query <query> <expected>\n'
   query="$1"
   expected="$2"
-  db="$3"
-  result="$(query "$query" "$db" true)"   # we need to use stric mode to avoid losing newlines at the end of text fields
+  result="$(query "$query" true)"   # we need to use stric mode to avoid losing newlines at the end of text fields
   # remove trailing underscore and the last newline
   result=${result%_}
   result=${result%"$NL"}
   # compare expected value with retrieved value
   if [ "$result" != "$expected" ]; then
-    printf '\nFAILURE:\n\tQuery failed on %s\n\t    query\t"%s"\n\t    expected\t"%s"\n\t    but got\t"%s"\n' "$db" "$query" "$expected" "$result" >&2
+    printf '\nFAILURE:\n\tQuery failed on %s\n\t    query\t"%s"\n\t    expected\t"%s"\n\t    but got\t"%s"\n' "$OUT_DATABASE" "$query" "$expected" "$result" >&2
     exit 1
   fi
 }
@@ -176,41 +172,38 @@ generate_db "$SQL_DUMP"
 
 # numeric
 assert_query "SELECT tinyint, smallint, mediumint, int, bigint FROM testnumeric;" \
-             "127|32767|8388607|2147483647|9223372036854775807" \
-             "$OUT_DATABASE"
+             "127|32767|8388607|2147483647|9223372036854775807"
+
 assert_query "SELECT decimal, float, double FROM testnumeric;" \
-             "988888888888888832|-1.17549e-38|-2.2250738585072e-308" \
-             "$OUT_DATABASE"
+             "988888888888888832|-1.17549e-38|-2.2250738585072e-308"
+
 assert_query "SELECT HEX(bit) FROM testnumeric;" \
-             "FFFFFFFF" \
-             "$OUT_DATABASE"
+             "FFFFFFFF"
 
 # datetime
 assert_query "SELECT * FROM testdatetime;" \
-             "2020-03-24|838:59:59|9999-12-31 23:59:59|2038-01-19 02:14:07|2155" \
-             "$OUT_DATABASE"
+             "2020-03-24|838:59:59|9999-12-31 23:59:59|2038-01-19 02:14:07|2155"
 
 # strings
 assert_query "SELECT char, varchar, \`set\`, enum FROM teststring;" \
-             "Z|a varchar for test that can be 0x2D char long|c|MAYBE" \
-             "$OUT_DATABASE"
+             "Z|a varchar for test that can be 0x2D char long|c|MAYBE"
+
 assert_query "SELECT text FROM teststring;" \
-             "text field content Lorem ipsum parabellum rectum et toutletoutim$NL We can also add some quotes ' double quotes '' doublequote \" and double doublequote \"\"$NL Why not some escape \\' \\'' \\\" \\\"\"$NL And some hexa 0xBAD$NL$NL Now its done$NL" \
-             "$OUT_DATABASE"
+             "text field content Lorem ipsum parabellum rectum et toutletoutim$NL We can also add some quotes ' double quotes '' doublequote \" and double doublequote \"\"$NL Why not some escape \\' \\'' \\\" \\\"\"$NL And some hexa 0xBAD$NL$NL Now its done$NL"
+
 assert_query "SELECT HEX(binary), HEX(varbinary) FROM teststring;" \
-             "2B|61207661726368617220666F72207465737420746861742063616E20626520307832442063686172206C6F6E67" \
-             "$OUT_DATABASE"
+             "2B|61207661726368617220666F72207465737420746861742063616E20626520307832442063686172206C6F6E67"
+
 assert_query "SELECT HEX(blob) FROM teststring;" \
-             "74657874206669656C6420636F6E74656E74204C6F72656D20697073756D207061726162656C6C756D2072656374756D20616E6420746F75746C65746F7574696D" \
-             "$OUT_DATABASE"
+             "74657874206669656C6420636F6E74656E74204C6F72656D20697073756D207061726162656C6C756D2072656374756D20616E6420746F75746C65746F7574696D"
 
 # Test mutiple inserts
 assert_query "SELECT id, name, weight FROM testmultirows WHERE id=1;" \
-             "1|Greg|125" \
-             "$OUT_DATABASE"
+             "1|Greg|125"
+
 assert_query "SELECT id, name, weight FROM testmultirows WHERE id=2;" \
-             "2|Mireille|52" \
-             "$OUT_DATABASE"
+             "2|Mireille|52"
+
 
 # Test that blobs and text in base64 format are not corrupted
 # A picture was inserted into database as a binary blob, and the same picture was inserted as base64 text :
@@ -219,12 +212,12 @@ assert_query "SELECT id, name, weight FROM testmultirows WHERE id=2;" \
 i=1
 while [ "$i" -le 2 ]; do
   out_picblob="$UT/test_picture_blob.png"
-  picblob="$(query 'SELECT HEX(picture) FROM testmultirows WHERE id='$i';' $OUT_DATABASE false)"  # no need for strict mode because hex cannot contain \n
+  picblob="$(query 'SELECT HEX(picture) FROM testmultirows WHERE id='$i';' false)"  # no need for strict mode because hex cannot contain \n
   hexstr_to_file "$picblob" "$out_picblob"
   md5blob="$(md5sum $out_picblob | awk '{ print $1 }')"
 
   out_picb64="$UT/test_picture_base64.png"
-  picb64="$(query 'SELECT base64picture FROM testmultirows WHERE id='$i';' $OUT_DATABASE false)"  # no need for strict mode because base64 cannot contain \n
+  picb64="$(query 'SELECT base64picture FROM testmultirows WHERE id='$i';' false)"  # no need for strict mode because base64 cannot contain \n
   printf "%s" "$picb64" | base64 -d > "$out_picb64"
   md5b64="$(md5sum $out_picb64 | awk '{ print $1 }')"
 
@@ -253,10 +246,33 @@ SQL
 generate_db "$SQL_DUMP"
 
 # check that default blob values are correctly converted
-query 'INSERT INTO bit_type (a) VALUES (NULL);' $OUT_DATABASE false
+query 'INSERT INTO bit_type (a) VALUES (NULL);' false
 assert_query "SELECT a, HEX(b), HEX(c), HEX(d), HEX(e) FROM bit_type;" \
-             "1|01|FF|0A|007F87" \
-             "$OUT_DATABASE"
+             "1|01|FF|0A|007F87"
+
+# issue #73 regression testing
+# https://github.com/dumblob/mysql2sqlite/issues/73
+cat <<\SQL > "$SQL_DUMP"
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `issue73` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `event_time` datetime(6) NOT NULL,
+  `record_type` int(11) NOT NULL,
+  `value_text` longtext,
+  `value_numerical` double DEFAULT NULL,
+  `value_enum` int(11) DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL,
+  `medical_record_id` int(11) NOT NULL,
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+SQL
+generate_db "$SQL_DUMP"
+assert_query ".schema issue73" \
+             "CREATE TABLE \`issue73\` ($NL  \`id\` integer NOT NULL PRIMARY KEY AUTOINCREMENT$NL,  \`event_time\` datetime(6) NOT NULL$NL,  \`record_type\` integer NOT NULL$NL,  \`value_text\` longtext$NL,  \`value_numerical\` double DEFAULT NULL$NL,  \`value_enum\` integer DEFAULT NULL$NL,  \`created_at\` datetime(6) NOT NULL$NL,  \`medical_record_id\` integer NOT NULL$NL);"
 
 
 # FIXME
