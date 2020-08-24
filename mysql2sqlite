@@ -167,6 +167,9 @@ inView != 0 { next }
 # Get rid of field lengths in KEY lines
 / (PRIMARY |primary )?(KEY|key)/ { gsub( /\([0-9]+\)/, "" ) }
 
+# Replace utc_timestamp with CURRENT_TIMESTAMP.  utc_timestamp does not exist on sqlite but sqlites CURRENT_TIMESTAMP uses utc timezone.
+/ (utc_timestamp)/ { gsub( /utc_timestamp/, "current_timestamp" ) }
+
 aInc == 1 && /PRIMARY KEY|primary key/ { next }
 
 # Replace COLLATE xxx_xxxx_xx statements with COLLATE BINARY
