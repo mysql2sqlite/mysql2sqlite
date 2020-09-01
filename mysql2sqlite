@@ -141,7 +141,7 @@ inView != 0 { next }
 }
 
 # CREATE DATABASE is not supported
-/^(CREATE.*DATABASE|create.*database)/ { next }
+/^(CREATE DATABASE|create database)/ { next }
 
 # print the CREATE line as is and capture the table name
 /^(CREATE|create)/ {
