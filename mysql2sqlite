@@ -143,6 +143,9 @@ inView != 0 { next }
 # CREATE DATABASE is not supported
 /^(CREATE DATABASE|create database)/ { next }
 
+# CREATE SCHEMA is not supported
+/^(CREATE.*SCHEMA|create.*schema)/ { next }
+
 # print the CREATE line as is and capture the table name
 /^(CREATE|create)/ {
   if( $0 ~ /IF NOT EXISTS|if not exists/ || $0 ~ /TEMPORARY|temporary/ ){
