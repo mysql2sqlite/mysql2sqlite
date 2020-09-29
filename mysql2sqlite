@@ -51,6 +51,12 @@ BEGIN {
 #  if( (s + 0) "" == s ){ INT_MAX_HALF = "44942328371557897693232629769725618340449424473557664318357520289433168951375240783177119330601884005280028469967848339414697442203604155623211857659868531094441973356216371319075554900311523529863270738021251442209537670585615720368478277635206809290837627671146574559986811484619929076208839082406056034304" + 0 }
 #  # higher precision probably not needed
 
+  # repeat the regex 17 times instead of using {17} for mawk compatibility
+  SEVENTEEN_HEX=""
+  for (i = 0; i < 17; i++){
+    SEVENTEEN_HEX="[0-9a-fA-F]" SEVENTEEN_HEX
+  }
+
   FS=",$"
   print "PRAGMA synchronous = OFF;"
   print "PRAGMA journal_mode = MEMORY;"
@@ -126,8 +132,8 @@ inView != 0 { next }
 
   gsub( /\\_/, "\\" )
 
-  # sqlite3 is limited to 16 significant digits of precision
-  while( match( $0, /0x[0-9a-fA-F]{17}/ ) ){
+  # sqlite3 is limited to 16 significant digits of precision.
+  while( match( $0, "0x"SEVENTEEN_HEX ) ){
     hexIssue = 1
     sub( /0x[0-9a-fA-F]+/, substr( $0, RSTART, RLENGTH-1 ), $0 )
   }
