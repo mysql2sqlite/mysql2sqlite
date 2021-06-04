@@ -103,7 +103,17 @@ inTrigger != 0 { print; next }
 inView != 0 { next }
 
 # skip comments
-/^\/\*/ { next }
+/^\/\*/ {
+  if(match($0,  "VIEW .* AS select") || match($0,  "VIEW .* AS SELECT")){
+    gsub(/^[^`]+ VIEW/, "CREATE VIEW")
+    gsub(/\*\/;$/, ";")
+    print
+  }
+  # else{
+  #   print # keep comments?
+  # }
+  next
+}
 
 # skip PARTITION statements
 /^ *[(]?(PARTITION|partition) +[^ ]+/ { next }
