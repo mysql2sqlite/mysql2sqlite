@@ -109,6 +109,11 @@ inView != 0 { next }
     gsub(/\*\/;$/, ";")
     print
   }
+  if(match($0,  "DROP VIEW IF EXISTS ")){
+    gsub(/^[^`]+ DROP VIEW IF EXISTS /, "DROP VIEW IF EXISTS ")
+    gsub(/\*\/;$/, ";")
+    print
+  }
   # else{
   #   print # keep comments?
   # }
