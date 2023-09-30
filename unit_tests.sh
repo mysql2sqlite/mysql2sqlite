@@ -99,7 +99,10 @@ hexstr_to_file() {
   printf "$result" > "$2"
 }
 
+# =================== check test environment ==================
 # ensure mandatory binaries are available
+
+printf "Checking test environment \n"
 assert_cmd_available "$M2S"
 assert_cmd_available sqlite3
 assert_cmd_available bc
@@ -108,8 +111,13 @@ assert_cmd_available md5sum
 assert_cmd_available awk
 assert_cmd_available base64
 
-# ================= Data types conversion ===================
+
+# ================= Tests for types conversion ===================
 # No tests for Spatial and JSON data types, as they require an extension of Sqlite
+
+# Create the SQLite database that will be used for the data types conversion tests
+printf "\n================== \nCreating dataset for types conversion tests (hex conversion warnings expected)"
+
 cat <<\SQL > "$SQL_DUMP"
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -171,6 +179,7 @@ SQL
 generate_db "$SQL_DUMP"
 
 # numeric
+printf "\t> Testing numeric values conversion \n"
 assert_query "SELECT tinyint, smallint, mediumint, int, bigint FROM testnumeric;" \
              "127|32767|8388607|2147483647|9223372036854775807"
 
@@ -181,10 +190,12 @@ assert_query "SELECT HEX(bit) FROM testnumeric;" \
              "FFFFFFFF"
 
 # datetime
+printf "\t> Testing datetime values conversion \n"
 assert_query "SELECT * FROM testdatetime;" \
              "2020-03-24|838:59:59|9999-12-31 23:59:59|2038-01-19 02:14:07|2155"
 
 # strings
+printf "\t> Testing strings values conversion \n"
 assert_query "SELECT char, varchar, \`set\`, enum FROM teststring;" \
              "Z|a varchar for test that can be 0x2D char long|c|MAYBE"
 
@@ -198,6 +209,7 @@ assert_query "SELECT HEX(blob) FROM teststring;" \
              "74657874206669656C6420636F6E74656E74204C6F72656D20697073756D207061726162656C6C756D2072656374756D20616E6420746F75746C65746F7574696D"
 
 # Test mutiple inserts
+printf "\t> Testing multiple insert \n"
 assert_query "SELECT id, name, weight FROM testmultirows WHERE id=1;" \
              "1|Greg|125"
 
@@ -209,6 +221,7 @@ assert_query "SELECT id, name, weight FROM testmultirows WHERE id=2;" \
 # A picture was inserted into database as a binary blob, and the same picture was inserted as base64 text :
 # data is retrieved from database, then dumped in 2 files (to ease debug in case of failure), and then
 # files hash are compared to ensure that they are identical
+printf "\t> Testing images encoding \n"
 i=1
 while [ "$i" -le 2 ]; do
   out_picblob="$UT/test_picture_blob.png"
@@ -233,7 +246,10 @@ while [ "$i" -le 2 ]; do
   i=$(( i + 1 ))
 done
 
-# ================= Bit Fields ===================
+# ================= Tests for bit-fields ===================
+# Create the SQLite database that will be used for the bit fields handling tests
+printf "\n================== \nCreating dataset for  Bit-Fields tests"
+
 cat <<\SQL > "$SQL_DUMP"
 CREATE TABLE "bit_type" (
   "a" int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -246,9 +262,14 @@ SQL
 generate_db "$SQL_DUMP"
 
 # check that default blob values are correctly converted
+printf "\t> Testing Bit-Fields handling \n"
 query 'INSERT INTO bit_type (a) VALUES (NULL);' false
 assert_query "SELECT a, HEX(b), HEX(c), HEX(d), HEX(e) FROM bit_type;" \
              "1|01|FF|0A|007F87"
+
+# ================= Non-regression tests for specific bugs ===================
+
+printf "\n================== \nCreating dataset for issue #73 Non-regression"
 
 # issue #73 regression testing
 # https://github.com/dumblob/mysql2sqlite/issues/73
@@ -271,13 +292,19 @@ CREATE TABLE `issue73` (
 /*!40101 SET character_set_client = utf8 */;
 SQL
 generate_db "$SQL_DUMP"
+
+printf "\t> Testing issue #73 non-regression \n"
 assert_query ".schema issue73" \
              "CREATE TABLE \`issue73\` ($NL  \`id\` integer NOT NULL PRIMARY KEY AUTOINCREMENT$NL,  \`event_time\` datetime(6) NOT NULL$NL,  \`record_type\` integer NOT NULL$NL,  \`value_text\` longtext$NL,  \`value_numerical\` double DEFAULT NULL$NL,  \`value_enum\` integer DEFAULT NULL$NL,  \`created_at\` datetime(6) NOT NULL$NL,  \`medical_record_id\` integer NOT NULL$NL);"
 
 
-# FIXME
-printf '\nERR Unit testing not yet fully implemented\n\n' >&2
-exit 1
+# ================= TODO ===================
+#       the following tests are not yet developped. 
+#       The SQL is provided as hints for the future test-cases 
+#
+printf '\nWARNING: Unit testing not yet fully implemented\n\n' >&2
+exit 0
+# ===========================================
 
 # Hex numbers with 15, 16, and 17 characters
 
