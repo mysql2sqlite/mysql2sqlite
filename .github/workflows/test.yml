@@ -10,9 +10,5 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@master
-      - name: "WHEREAMI"
-        run: pwd
-      - name: "LIST"
-        run: ls -lah
       - name: "Run unit tests"
         run: bash ./unit_tests.sh
