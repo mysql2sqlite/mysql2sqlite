@@ -8,6 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the code
+        uses: actions/checkout@master
       - name: "WHEREAMI"
         run: pwd
       - name: "LIST"
