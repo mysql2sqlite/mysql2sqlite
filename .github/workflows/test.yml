@@ -1,15 +1,16 @@
 name: "mysql2sqlite CI"
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
   workflow_dispatch:
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
+      - name: "WHEREAMI"
+        run: pwd
+      - name: "LIST"
+        run: ls -lah
       - name: "Run unit tests"
-        run: bash unit_tests.sh
+        run: bash ./unit_tests.sh
