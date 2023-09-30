@@ -1,5 +1,4 @@
-yaml
-name: mysql2sqlite CI
+name: "mysql2sqlite CI"
 on:
   push:
     branches:
@@ -9,7 +8,7 @@ on:
       - main
 jobs:
   build:
-    runs-on: debian-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: Run unit tests
+      - name: "Run unit tests"
         run: bash unit_tests.sh
