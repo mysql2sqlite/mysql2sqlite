@@ -9,8 +9,13 @@ function printerr( s ){ print s | "cat >&2" }
 BEGIN {
   if( ARGC != 2 ){
     printerr( \
-      "USAGE: mysql2sqlite dump_mysql.sql > dump_sqlite3.sql\n" \
-      "       file name - (dash) is not supported, because - means stdin")
+      "USAGE:\n"\
+      "       mysql2sqlite dump_mysql.sql > dump_sqlite3.sql\n" \
+      "       OR\n" \
+      "       mysql2sqlite dump_mysql.sql | sqlite3 sqlite.db\n" \
+      "\n" \
+      "NOTES:\n" \
+      "       Dash in filename is not supported, because dash (-) means stdin." )
     no_END = 1
     exit 1
   }
@@ -220,7 +225,7 @@ inView != 0 { next }
 }
 
 # CREATE DATABASE is not supported
-/^(CREATE.*DATABASE|create.*database)/ { next }
+/^(CREATE DATABASE|create database)/ { next }
 
 # print the CREATE line as is and capture the table name
 /^(CREATE|create)/ {
