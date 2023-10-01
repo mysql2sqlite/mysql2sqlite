@@ -26,19 +26,30 @@ assert_cmd_available() {
 
 # This function creates a sqlite database using given sql script file. The file is put at $OUT_DATABASE.
 # It converts SQL dump into sqlite script, and executes this script with sqlite3 to create a valid database file.
+# The second param is optional: if true, errors won't cause the script to end
 generate_db() {
   inputFile="$1"
+  ignoreErrors="$2"
   rm -- "$OUT_SCRIPT" 2> /dev/null
   rm -- "$OUT_DATABASE" 2> /dev/null
   "$M2S" "$inputFile" > "$OUT_SCRIPT"
-  sqlite3 "$OUT_DATABASE" < "$OUT_SCRIPT"
+  sqlite3 "$OUT_DATABASE" < "$OUT_SCRIPT" > /dev/null
+  if [ $? -ne 0 ]; then
+    # an error occured during database creation => exit script
+    # if ignoreError is true, do not exit script and write "error" on stdout to allow caller to detect the error
+    if [ "$ignoreErrors" = true ]; then
+        printf "error"
+    else
+        exit 1
+    fi
+  fi
 }
 
 # This function simply run the given query on $OUT_DATABASE
 # It will print the result
 # params: 
 #     1. the SQL query (as string)
-#     2. strict mode (as boolean). When in stric mode, a trailing '_' will be added to result to avoid
+#     2. strict mode (as boolean). When in strict mode, a trailing '_' will be added to result to avoid
 #        trailing newlines to be truncated. It will be the caller's responsibility to remove this trailing underscore
 #
 query() {
@@ -66,7 +77,7 @@ assert_query() {
   [ $# -eq 2 ] || printf 'USAGE: assert_query <query> <expected>\n'
   query="$1"
   expected="$2"
-  result="$(query "$query" true)"   # we need to use stric mode to avoid losing newlines at the end of text fields
+  result="$(query "$query" true)"   # we need to use strict mode to avoid losing newlines at the end of text fields
   # remove trailing underscore and the last newline
   result=${result%_}
   result=${result%"$NL"}
@@ -102,7 +113,7 @@ hexstr_to_file() {
 # =================== check test environment ==================
 # ensure mandatory binaries are available
 
-printf "Checking test environment \n"
+printf "\n================== \nChecking test environment \n"
 assert_cmd_available "$M2S"
 assert_cmd_available sqlite3
 assert_cmd_available bc
@@ -116,7 +127,7 @@ assert_cmd_available base64
 # No tests for Spatial and JSON data types, as they require an extension of Sqlite
 
 # Create the SQLite database that will be used for the data types conversion tests
-printf "\n================== \nCreating dataset for types conversion tests (hex conversion warnings expected)"
+printf "\n================== \nCreating dataset for types conversion tests (hex conversion warnings expected) \n\n"
 
 cat <<\SQL > "$SQL_DUMP"
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -246,9 +257,61 @@ while [ "$i" -le 2 ]; do
   i=$(( i + 1 ))
 done
 
+
+# ================= Tests for Hex numbers ===================
+# Create the SQLite database that will be used for the hex numbers tests
+printf "\n================== \nCreating dataset for Hex numbers tests \n\n"
+
+# Hex numbers with 15 and 16 characters 
+cat <<\SQL > "$SQL_DUMP"
+CREATE TABLE `cache` (
+  `cid` VARCHAR(127) NOT NULL,
+  `data` BIGINT NOT NULL,
+  `expire` TINYINT NOT NULL,
+  `created` TIMESTAMP NOT NULL,
+  `headers` VARCHAR(45) NOT NULL,
+  `serialized` TINYINT NOT NULL,
+  PRIMARY KEY (`cid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO 'cache' ('cid', 'data', 'expire', 'created', 'headers', 'serialized') VALUES
+  ('ctools_plugin_files:ctools:style_bases', 0x613a313a7b733a3, 0, 1440573529, '', 1),
+  ('ctools_plugin_files:ctools:content_types', 0xa343a226e6f64652, 0, 1440573529, '', 1);
+SQL
+generate_db "$SQL_DUMP"
+
+# check that bit values are correctly converted
+printf "\t> Testing Hex numbers with 15 characters \n"
+assert_query "SELECT data FROM cache WHERE cid='ctools_plugin_files:ctools:style_bases';" \
+             "437872893598577571"
+printf "\t> Testing Hex numbers with 16 characters \n"
+assert_query "SELECT data FROM cache WHERE cid='ctools_plugin_files:ctools:content_types';" \
+             "-6682319134120327598"
+
+# Hex numbers with 17 characters => will fail because BIGINT is converted to integer (which is 8 bytes max)
+printf "\t> Testing Hex numbers with 17 characters (should fail with 'hex literal too big') \n"
+cat <<\SQL > "$SQL_DUMP"
+CREATE TABLE `cache` (
+  `cid` VARCHAR(127) NOT NULL,
+  `data` BIGINT NOT NULL,
+  `expire` TINYINT NOT NULL,
+  `created` TIMESTAMP NOT NULL,
+  `headers` VARCHAR(45) NOT NULL,
+  `serialized` TINYINT NOT NULL,
+  PRIMARY KEY (`cid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO 'cache' ('cid', 'data', 'expire', 'created', 'headers', 'serialized') VALUES
+  ('theme_registry:my_theme', 0x613a3234353a7b733, 0, 1440572933, '', 1);
+SQL
+result=$(generate_db "$SQL_DUMP" true) # this should return "error"
+if [ "$result" != "error" ]; then
+    printf "Error: database generation should have failed but has succeeded"
+    exit 1
+fi
+
+
 # ================= Tests for bit-fields ===================
 # Create the SQLite database that will be used for the bit fields handling tests
-printf "\n================== \nCreating dataset for  Bit-Fields tests"
+printf "\n================== \nCreating dataset for Bit-Fields tests \n\n"
 
 cat <<\SQL > "$SQL_DUMP"
 CREATE TABLE "bit_type" (
@@ -258,18 +321,49 @@ CREATE TABLE "bit_type" (
   "d" BIT(4) NOT NULL DEFAULT b'1010',
   "e" BIT(4) NOT NULL DEFAULT B'00111111110000111'
 );
+CREATE TABLE "bit_raw" (
+  "ID" int(10) NOT NULL,
+  "f" int(11) NOT NULL,
+  "direct" bit(1) NOT NULL DEFAULT 1,
+  "t" int(11) NOT NULL
+);
+insert into "bit_raw" ("ID", "f", "t") values (5, 6, 7);
+insert into "bit_raw" ("ID", "f", "direct", "t") values (55, 66, 99, 77);
+CREATE TABLE "bit_overflow" (
+  "ID" int(10) NOT NULL,
+  "f" int(11) NOT NULL,
+  "direct" bit(1) NOT NULL DEFAULT 199,
+  "t" int(11) NOT NULL
+);
+insert into "bit_overflow" ("ID", "f", "t") values (5, 6, 7);
+insert into "bit_overflow" ("ID", "f", "direct", "t") values (55, 66, 99, 77);
 SQL
 generate_db "$SQL_DUMP"
 
-# check that default blob values are correctly converted
-printf "\t> Testing Bit-Fields handling \n"
+# check that bit values are correctly converted
+printf "\t> Testing Bit-Fields bit values handling \n"
 query 'INSERT INTO bit_type (a) VALUES (NULL);' false
 assert_query "SELECT a, HEX(b), HEX(c), HEX(d), HEX(e) FROM bit_type;" \
              "1|01|FF|0A|007F87"
 
+# check that int values are correctly converted
+printf "\t> Testing Bit-Fields int values handling \n"
+assert_query "SELECT ID, f, HEX(direct), t FROM bit_raw WHERE ID=5;" \
+             "5|6|01|7"
+assert_query "SELECT ID, f, HEX(direct), t FROM bit_raw WHERE ID=55;" \
+             "55|66|63|77"
+
+# check that overflowing int values are correctly converted
+printf "\t> Testing Bit-Fields overflowing int values handling \n"
+assert_query "SELECT ID, f, HEX(direct), t FROM bit_overflow WHERE ID=5;" \
+             "5|6|C7|7"
+assert_query "SELECT ID, f, HEX(direct), t FROM bit_overflow WHERE ID=55;" \
+             "55|66|63|77"
+
+
 # ================= Non-regression tests for specific bugs ===================
 
-printf "\n================== \nCreating dataset for issue #73 Non-regression"
+printf "\n================== \nCreating dataset for issue #73 Non-regression \n\n"
 
 # issue #73 regression testing
 # https://github.com/dumblob/mysql2sqlite/issues/73
@@ -306,56 +400,9 @@ printf '\nWARNING: Unit testing not yet fully implemented\n\n' >&2
 exit 0
 # ===========================================
 
-# Hex numbers with 15, 16, and 17 characters
-
-cat <<\SQL
-INSERT INTO `cache` (`cid`, `data`, `expire`, `created`, `headers`, `serialized`) VALUES
-('ctools_plugin_files:ctools:style_bases', 0x613a313a7b733a3, 0, 1440573529, '', 1),
-('ctools_plugin_files:ctools:content_types', 0xa343a226e6f64652, 0, 1440573529, '', 1);
-INSERT INTO `cache` (`cid`, `data`, `expire`, `created`, `headers`, `serialized`) VALUES
-('theme_registry:my_theme', 0x613a3234353a7b733, 0, 1440572933, '', 1);
-SQL
 
 # WARN Potential case sensitivity issues... for each line
 
-# Bit Fields
-
-cat <<\SQL
-CREATE TABLE "bit_type" (
-  "a" int(10) unsigned NOT NULL AUTO_INCREMENT,
-  "b" bit(1) NOT NULL DEFAULT b'1',
-  "c" bit(8) NOT NULL DEFAULT B'11111111',
-  "d" BIT(4) NOT NULL DEFAULT b'1010',
-  "e" BIT(4) NOT NULL DEFAULT B'00111111110000111',
-  "f" int(10) unsigned NOT NULL AUTO_INCREMENT,
-);
-SQL
-
-# big bit field num
-# big bit field num with overflow
-# big bit field num with potential overflow, but zeros
-
-cat <<\SQL
-CREATE TABLE "map" (
-  "ID" int(10) NOT NULL,
-  "f" int(11) NOT NULL,
-  "direct" bit(1) NOT NULL DEFAULT 1,
-  "t" int(11) NOT NULL
-);
-insert into "map" ("ID", "f", "t") values (5, 6, 7);
-insert into "map" ("ID", "f", "direct", "t") values (55, 66, 99, 77);
-SQL
-
-cat <<\SQL
-CREATE TABLE "map" (
-  "ID" int(10) NOT NULL,
-  "f" int(11) NOT NULL,
-  "direct" bit(1) NOT NULL DEFAULT 199,
-  "t" int(11) NOT NULL
-);
-insert into "map" ("ID", "f", "t") values (5, 6, 7);
-insert into "map" ("ID", "f", "direct", "t") values (55, 66, 99, 77);
-SQL
 
 cat <<\SQL
 DROP TABLE IF EXISTS `AAAA`;
