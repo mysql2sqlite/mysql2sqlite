@@ -288,7 +288,8 @@ assert_query "SELECT data FROM cache WHERE cid='ctools_plugin_files:ctools:conte
              "-6682319134120327598"
 
 # Hex numbers with 17 characters => will fail because BIGINT is converted to integer (which is 8 bytes max)
-printf "\t> Testing Hex numbers with 17 characters (should fail with 'hex literal too big') \n"
+# As we don't want to loose data, we don't want to fail silently
+printf "\t> Testing Hex numbers with 17 characters \n"
 cat <<\SQL > "$SQL_DUMP"
 CREATE TABLE `cache` (
   `cid` VARCHAR(127) NOT NULL,
@@ -302,64 +303,92 @@ CREATE TABLE `cache` (
 INSERT INTO 'cache' ('cid', 'data', 'expire', 'created', 'headers', 'serialized') VALUES
   ('theme_registry:my_theme', 0x613a3234353a7b733, 0, 1440572933, '', 1);
 SQL
-result=$(generate_db "$SQL_DUMP" true) # this should return "error"
+result=$(generate_db "$SQL_DUMP" true 2>/dev/null) # this should return "error"
 if [ "$result" != "error" ]; then
-    printf "Error: database generation should have failed but has succeeded"
-    exit 1
+  printf "Error: database generation should have failed with 'hex literal too big', but it has succeeded \n\n"
+  exit 1
 fi
 
 
 # ================= Tests for bit-fields ===================
 # Create the SQLite database that will be used for the bit fields handling tests
-printf "\n================== \nCreating dataset for Bit-Fields tests \n\n"
+printf "\n================== \nCreating dataset for Bit-Fields tests (hex conversion warnings expected) \n\n"
 
 cat <<\SQL > "$SQL_DUMP"
 CREATE TABLE "bit_type" (
-  "a" int(10) unsigned NOT NULL AUTO_INCREMENT,
+  "id" int(10) unsigned NOT NULL AUTO_INCREMENT,
   "b" bit(1) NOT NULL DEFAULT b'1',
   "c" bit(8) NOT NULL DEFAULT B'11111111',
   "d" BIT(4) NOT NULL DEFAULT b'1010',
-  "e" BIT(4) NOT NULL DEFAULT B'00111111110000111'
+  "e" BIT(64) NOT NULL DEFAULT B'00111111110000111'
 );
-CREATE TABLE "bit_raw" (
-  "ID" int(10) NOT NULL,
-  "f" int(11) NOT NULL,
-  "direct" bit(1) NOT NULL DEFAULT 1,
-  "t" int(11) NOT NULL
-);
-insert into "bit_raw" ("ID", "f", "t") values (5, 6, 7);
-insert into "bit_raw" ("ID", "f", "direct", "t") values (55, 66, 99, 77);
-CREATE TABLE "bit_overflow" (
-  "ID" int(10) NOT NULL,
-  "f" int(11) NOT NULL,
-  "direct" bit(1) NOT NULL DEFAULT 199,
-  "t" int(11) NOT NULL
-);
-insert into "bit_overflow" ("ID", "f", "t") values (5, 6, 7);
-insert into "bit_overflow" ("ID", "f", "direct", "t") values (55, 66, 99, 77);
+insert into "bit_type" ("id") values (NULL);
+insert into "bit_type" ("id", "b", "c", "d", "e") values (2,0x01,0xEE,0xF,0xA0000000000000C7);
 SQL
 generate_db "$SQL_DUMP"
 
 # check that bit values are correctly converted
 printf "\t> Testing Bit-Fields bit values handling \n"
-query 'INSERT INTO bit_type (a) VALUES (NULL);' false
-assert_query "SELECT a, HEX(b), HEX(c), HEX(d), HEX(e) FROM bit_type;" \
+assert_query "SELECT id, HEX(b), HEX(c), HEX(d), HEX(e) FROM bit_type where id=1;" \
              "1|01|FF|0A|007F87"
 
-# check that int values are correctly converted
-printf "\t> Testing Bit-Fields int values handling \n"
-assert_query "SELECT ID, f, HEX(direct), t FROM bit_raw WHERE ID=5;" \
-             "5|6|01|7"
-assert_query "SELECT ID, f, HEX(direct), t FROM bit_raw WHERE ID=55;" \
-             "55|66|63|77"
+printf "\t> Testing Bit-Fields hex values handling \n"
+assert_query "SELECT id, HEX(b), HEX(c), HEX(d), HEX(e) FROM bit_type where id=2;" \
+             "2|01|EE|0F|A0000000000000C7"
 
-# check that overflowing int values are correctly converted
-printf "\t> Testing Bit-Fields overflowing int values handling \n"
-assert_query "SELECT ID, f, HEX(direct), t FROM bit_overflow WHERE ID=5;" \
-             "5|6|C7|7"
-assert_query "SELECT ID, f, HEX(direct), t FROM bit_overflow WHERE ID=55;" \
-             "55|66|63|77"
 
+# ================= Tests for comments, keys, timestamps and triggers removal ===================
+# Create the SQLite database that will be used for the tests
+printf "\n================== \nCreating dataset for comments, keys, timestamps and triggers removal \n\n"
+
+cat <<\SQL > "$SQL_DUMP"
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `category` (
+  `id` int(10) NOT NULL AUTO_INCREMENT,
+  `name` varchar(45) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `category` VALUES (1,'Croissants');
+INSERT INTO `category` VALUES (2,'Chocolatines');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `article` (
+  `id` bigint(32) NOT NULL AUTO_INCREMENT COMMENT 'PK.',
+  `llll` varchar(10) NOT NULL COMMENT 'Some Comment',
+  `rrrr` timestamp NOT NULL DEFAULT current_timestamp() COMMENT 'Created date',
+  `ssss` timestamp NULL DEFAULT NULL ON UPDATE current_timestamp() COMMENT 'Modified Date. Some Comment',
+  `tttt` varchar(1) DEFAULT 'A' COMMENT 'Some Comment',
+  `bbbb` int(10) NOT NULL COMMENT 'Foreign key',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `aaaa_pk` (`id`) COMMENT 'PK Index',
+  KEY `bbbb_fk` (`bbbb`) COMMENT 'Index for FK, Reference Category',
+  CONSTRAINT `bbbb_fk` FOREIGN KEY (`bbbb`) REFERENCES `category` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `article` VALUES (1,'Beurre','2023-10-02 12:47:31',NULL,'A',1);
+SQL
+generate_db "$SQL_DUMP"
+
+# check that values are correctly inserted
+printf "\t> Testing for foreign key insert\n"
+assert_query "SELECT id, llll, rrrr, ssss, tttt, bbbb FROM article WHERE id=1;" \
+             "1|Beurre|2023-10-02 12:47:31||A|1"
+
+# check current_timestamp
+printf "\t> Testing for current_timestamp\n"
+query "INSERT INTO article (llll, ssss, tttt, bbbb) VALUES ('Farine', '2023-10-02 12:47:33', 'B', 2);" false
+assert_query "SELECT id, llll, rrrr, ssss, tttt, bbbb FROM article WHERE id=2;" \
+             "2|Farine|$(date -u "+%F %H:%M:%S")|2023-10-02 12:47:33|B|2"
+
+# check foreign key enforcement, by deleting a constraint and checking for error
+printf "\t> Testing for foreign key enforcement\n"
+result=$(query "PRAGMA foreign_keys=1; DELETE FROM category WHERE id=1;" false)
+if ! grep -q "FOREIGN KEY constraint failed" <<< "$result"; then
+  printf "Error: foreign key should have prevent deletion, but it has not \n\n"
+  exit 1
+fi
 
 # ================= Non-regression tests for specific bugs ===================
 
@@ -400,49 +429,12 @@ printf '\nWARNING: Unit testing not yet fully implemented\n\n' >&2
 exit 0
 # ===========================================
 
-
-# WARN Potential case sensitivity issues... for each line
-
-
-cat <<\SQL
-DROP TABLE IF EXISTS `AAAA`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `AAAA` (
-  `id` bigint(10) NOT NULL AUTO_INCREMENT COMMENT 'PK.',
-  `llll` varchar(10) NOT NULL COMMENT 'Some Comment',
-  `rrrr` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Created date',
-  `ssss` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP COMMENT 'Modified Date. Some Comment',
-  `tttt` varchar(1) DEFAULT 'A' COMMENT 'Some Comment',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `aaaa_pk` (`id`) COMMENT 'PK Index',
-  KEY `bbbb_fk` (`bbbb`) COMMENT 'Index for FK, Reference Category',
-  CONSTRAINT `bbbb_fk` FOREIGN KEY (`bbbb`) REFERENCES `category` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `AAAA`
---
-
-LOCK TABLES `AAAA` WRITE;
-/*!40000 ALTER TABLE `AAAA` DISABLE KEYS */;
-/*!40000 ALTER TABLE `AAAA` ENABLE KEYS */;
-UNLOCK TABLES;
-SQL
-
 cat <<\SQL
 /*!50100 PARTITION BY RANGE (YEAR(date))
 (PARTITION p6 VALUES LESS THAN (2012) ENGINE = InnoDB,
  PARTITION p7 VALUES LESS THAN (2013) ENGINE = InnoDB)
 SQL
 
-cat <<\SQLin
-CREATE TABLE `CCC`(
-  `created` datetime DEFAULT current_timestamp(),
-  `updated` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
-);
-SQLin
 
 cat <<\SQLout
 PRAGMA synchronous = OFF;
