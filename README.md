@@ -33,7 +33,6 @@ It's originally based on the newest fork (https://gist.github.com/bign8/9055981/
 * add support for multiple-record `INSERT INTO VALUES`
 * revise support for lower-case SQL statements
 * fix `AUTO_INCREMENT` handling
-* trim hexadecimal values longer than 16 characters and issue a warning about it
 * add identifier case sensitivity warning in case `IF NOT EXISTS` or `TEMPORARY` has been detected (on unix sqlite3 treats temporary table name `FILES` the same as `files`; in other words, sqlite3 doesn't issue any warning about cross-collisions between `TABLE` and `TEMPORARY TABLE` identifiers)
 * replace `COLLATE xxx_xxxx_xx` statements with `COLLATE BINARY` (https://gist.github.com/4levels/0d5da65bf9d70479fbe3/d0ac3d295dc5e2f72411ad06c07a22931368a1b7)
 * handle `CONSTRAINT FOREIGN KEY` (https://gist.github.com/BastienDurel/7f413d13d7b858aef31c/922be110d011b9da340ae545372214b597ad7b84)
