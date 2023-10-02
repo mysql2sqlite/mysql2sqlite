@@ -77,6 +77,49 @@ function bit_to_int( str_bit,   powtwo, i, res, bit, overflow ){
   return res
 }
 
+# Return the hexadecimal digit corresponding to given decimal number (between 0 and 15)
+function dec_to_hex( dec ){
+  if( dec < 10 ) return dec
+  if( dec == 10 ) return "A"
+  if( dec == 11 ) return "B"
+  if( dec == 12 ) return "C"
+  if( dec == 13 ) return "D"
+  if( dec == 14 ) return "E"
+  if( dec == 15 ) return "F"
+  printerr( \
+    NR ": Failed to convert decimal to hex, unsupported digit (" dec ")" )
+  no_END = 1
+  exit 1
+}
+
+# convert given bit string to hex string (ie. b'011010' will become x'1A')
+function bit_to_hexstr( str_bit,   powtwo, i, res, bit, j, digit ){
+  powtwo = 1
+  res = ""
+  j = 0  
+  # 011101 = 1*2^0 + 0*2^1 + 1*2^2 ...
+  for( i = length( str_bit ); i > 0; --i ){
+    if( j == 4 ){
+      # 4 bits make 1 hex digit
+      res = dec_to_hex(digit) res
+      j = 0
+      digit = 0
+      powtwo = 1
+    }
+    bit = substr( str_bit, i, 1 )
+    digit = digit + bit * powtwo
+    powtwo = powtwo * 2
+    j = j + 1
+  }
+  # add last digit and prefix with 0 if needed (a hex byte must have 2 chars)
+  res = dec_to_hex(digit) res
+  if( length( res ) % 2 == 1 ){
+    res = "0" res
+  }
+  res = "x'" res "'"
+  return res
+}
+
 # CREATE TRIGGER statements have funny commenting. Remember we are in trigger.
 /^\/\*.*(CREATE.*TRIGGER|create.*trigger)/ {
   gsub( /^.*(TRIGGER|trigger)/, "CREATE TRIGGER" )
@@ -95,7 +138,7 @@ inTrigger != 0 { print; next }
   next
 }
 # end of CREATE VIEW
-/^(\).*(ENGINE|engine).*\*\/;)/ {
+/^([)].*(ENGINE|engine).*\*\/;)/ {
   inView = 0
   next
 }
@@ -109,7 +152,7 @@ inView != 0 { next }
 /^ *[(]?(PARTITION|partition) +[^ ]+/ { next }
 
 # print all INSERT lines
-( /^ *\(/ && /\) *[,;] *$/ ) || /^(INSERT|insert|REPLACE|replace)/ {
+( /^ *[(]/ && /[)] *[,;] *$/ ) || /^(INSERT|insert|REPLACE|replace)/ {
   prev = ""
 
   # first replace \\ by \_ that mysqldump never generates to deal with
@@ -126,16 +169,57 @@ inView != 0 { next }
 
   gsub( /\\_/, "\\" )
 
-  # sqlite3 is limited to 16 significant digits of precision
-  while( match( $0, /0x[0-9a-fA-F]{17}/ ) ){
-    hexIssue = 1
-    sub( /0x[0-9a-fA-F]+/, substr( $0, RSTART, RLENGTH-1 ), $0 )
-  }
-  if( hexIssue ){
-    printerr( \
-      NR ": WARN Hex number trimmed (length longer than 16 chars)." )
+  # get content of VALUES statement
+  if( match( $0, /(VALUES|values) +[(].*[)];$/ ) ) {
+    valuesStart = RSTART
+    valuesStatement = substr( $0, RSTART, RLENGTH )
+
+    # remove the "VALUES (" prefix and the ");" suffix
+    match( valuesStatement, /[(].*[)];$/ )
+    remaining = substr( valuesStatement, RSTART+1, RLENGTH-3 )
+    
+    # get each individual value
     hexIssue = 0
+    insValues = ""
+    # find values delimited by commas. Only 2 possibilities: not a string | a string
+    while( match( remaining, /(^[^'][^,]*(,|$))|(^'([^']|'')*'(,|$))/ ) ) {
+      if( RLENGTH == length( remaining ) ) {
+        # it is the last value, so we don't add a comma after
+        valLen = RLENGTH
+        comma = ""
+      }
+      else {
+        valLen = RLENGTH-1
+        comma = ","
+      }
+
+      # now we have the value that will be inserted!
+      val = substr( remaining, RSTART, valLen )
+
+      # truncate remaining to keep only unprocessed part
+      remaining = substr( remaining, RSTART+RLENGTH )
+
+      # convert hex number to hex string if needed
+      if( match( val, /^0x[0-9a-fA-F]+$/ ) ) {
+        hexIssue = 1
+        hexStart = RSTART+2
+        hexLen = RLENGTH-2
+        zeroFiller = hexLen % 2 == 1 ? "0" : ""
+        val = "x'" zeroFiller substr( val, hexStart, hexLen ) "'"
+      }
+
+      # concat the modified value to the previous ones
+      insValues = insValues val comma
+    }
+    # replace VALUES statement with modified statement
+    $0 = substr( $0, 0, valuesStart-1 ) "VALUES (" insValues ");" 
+    
+    if( hexIssue ){
+      printerr( \
+        NR ": WARN Hex number converted to hex string (see mysqldump --hex-blob option)." )
+    }
   }
+
   print
   next
 }
@@ -165,7 +249,7 @@ inView != 0 { next }
 /^  (FULLTEXT KEY|fulltext key)/ { gsub( /[A-Za-z ]+(KEY|key)/, "  KEY" ) }
 
 # Get rid of field lengths in KEY lines
-/ (PRIMARY |primary )?(KEY|key)/ { gsub( /\([0-9]+\)/, "" ) }
+/ (PRIMARY |primary )?(KEY|key)/ { gsub( /[(][0-9]+[)]/, "" ) }
 
 aInc == 1 && /PRIMARY KEY|primary key/ { next }
 
@@ -173,7 +257,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
 / (COLLATE|collate) [a-z0-9_]*/ { gsub( /(COLLATE|collate) [a-z0-9_]*/, "COLLATE BINARY" ) }
 
 # Print all fields definition lines except the `KEY` lines.
-/^  / && !/^(  (KEY|key)|\);)/ {
+/^  / && !/^(  (KEY|key)|[)];)/ {
   if( match( $0, /[^"`]AUTO_INCREMENT|auto_increment[^"`]/) ){
     aInc = 1
     gsub( /AUTO_INCREMENT|auto_increment/, "PRIMARY KEY AUTOINCREMENT" )
@@ -188,18 +272,20 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
   #   BEGIN
   #   UPDATE Package SET LastUpdate = CURRENT_TIMESTAMP WHERE ActionId = old.ActionId;
   #   END
-  gsub( /(ON|on) (UPDATE|update) (CURRENT_TIMESTAMP|current_timestamp)(\(\))?/, "" )
-  gsub( /(DEFAULT|default) (CURRENT_TIMESTAMP|current_timestamp)(\(\))?/, "DEFAULT current_timestamp")
+  gsub( /(ON|on) (UPDATE|update) (CURRENT_TIMESTAMP|current_timestamp)([(][)])?/, "" )
+  gsub( /(DEFAULT|default) (CURRENT_TIMESTAMP|current_timestamp)([(][)])?/, "DEFAULT current_timestamp")
   gsub( /(COLLATE|collate) [^ ]+ /, "" )
-  gsub( /(ENUM|enum)[^)]+\)/, "text " )
-  gsub( /(SET|set)\([^)]+\)/, "text " )
+  gsub( /(ENUM|enum)[(][^)]+[)]/, "text " )
+  gsub( /(SET|set)[(][^)]+[)]/, "text " )
   gsub( /UNSIGNED|unsigned/, "" )
   gsub( /_utf8mb3/, "" )
-  gsub( /` [^ ]*(INT|int|BIT|bit)[^ ]*/, "` integer" )
-  gsub( /" [^ ]*(INT|int|BIT|bit)[^ ]*/, "\" integer" )
+  gsub( /` [^ ]*(INT|int)[^ ]*/, "` integer" )
+  gsub( /" [^ ]*(INT|int)[^ ]*/, "\" integer" )
+  gsub( /` [^ ]*(BIT|bit)[^ ]*/, "` blob" )
+  gsub( /" [^ ]*(BIT|bit)[^ ]*/, "\" blob" )
   ere_bit_field = "[bB]'[10]+'"
   if( match($0, ere_bit_field) ){
-    sub( ere_bit_field, bit_to_int( substr( $0, RSTART +2, RLENGTH -2 -1 ) ) )
+    sub( ere_bit_field, bit_to_hexstr( substr( $0, RSTART +2, RLENGTH -2 -1 ) ) )
   }
 
   # remove USING BTREE and other suffixes for USING, for example: "UNIQUE KEY
@@ -246,7 +332,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
 # `KEY` lines are extracted from the `CREATE` block and stored in array for later print
 # in a separate `CREATE KEY` command. The index name is prefixed by the table name to
 # avoid a sqlite error for duplicate index name.
-/^(  (KEY|key)|\);)/ {
+/^(  (KEY|key)|[)];)/ {
   if( prev ){
     if( firstInTable ){
       print prev
@@ -264,7 +350,7 @@ aInc == 1 && /PRIMARY KEY|primary key/ { next }
     if( match( $0, /`[^`]+/ ) ){
       indexName = substr( $0, RSTART+1, RLENGTH-1 )
     }
-    if( match( $0, /\([^()]+/ ) ){
+    if( match( $0, /[(][^()]+/ ) ){
       indexKey = substr( $0, RSTART+1, RLENGTH-1 )
     }
     # idx_ prefix to avoid name clashes (they really happen!)

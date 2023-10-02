@@ -1,0 +1,12 @@
+name: "mysql2sqlite CI"
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@master
+      - name: "Run unit tests"
+        run: bash ./unit_tests.sh

@@ -7,7 +7,7 @@ Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` stat
 1. Dump MySQL DB
 
     ~~~~
-    mysqldump --skip-extended-insert --compact [options]... DB_name > dump_mysql.sql
+    mysqldump --skip-extended-insert --hex-blob --compact [options]... DB_name > dump_mysql.sql
     # or
     #mysqldump --no-data -u root -pmyPassword [options]... DB_name > dump_mysql.sql
     ~~~~
@@ -20,6 +20,8 @@ Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` stat
 
 (both `mysql2sqlite` and `sqlite3` might write something to stdout and stderr - e.g. `memory` coming from `PRAGMA journal_mode = MEMORY;` is not harmful)
 
+BEWARE: `--delayed ` option of mysqldump is not compatible with `mysql2sqlite`
+
 ## Development
 
 The script is written in *awk* (tested with gawk, but should work with original awk, and the lightning fast mawk) and shall be fully POSIX compliant.
@@ -31,10 +33,10 @@ It's originally based on the newest fork (https://gist.github.com/bign8/9055981/
 * add support for multiple-record `INSERT INTO VALUES`
 * revise support for lower-case SQL statements
 * fix `AUTO_INCREMENT` handling
-* trim hexadecimal values longer than 16 characters and issue a warning about it
 * add identifier case sensitivity warning in case `IF NOT EXISTS` or `TEMPORARY` has been detected (on unix sqlite3 treats temporary table name `FILES` the same as `files`; in other words, sqlite3 doesn't issue any warning about cross-collisions between `TABLE` and `TEMPORARY TABLE` identifiers)
 * replace `COLLATE xxx_xxxx_xx` statements with `COLLATE BINARY` (https://gist.github.com/4levels/0d5da65bf9d70479fbe3/d0ac3d295dc5e2f72411ad06c07a22931368a1b7)
 * handle `CONSTRAINT FOREIGN KEY` (https://gist.github.com/BastienDurel/7f413d13d7b858aef31c/922be110d011b9da340ae545372214b597ad7b84)
+* convert `BIT` to `BLOB` instead of `INTEGER`, to avoid the flaw of forced truncation (without truncation sqlite would silently convert the integer to float internally for storage, and thus lose the bit information)
 
 Feel free to **contribute** (preferably by issuing a pull request)!
 
