@@ -5,6 +5,7 @@ Converts MySQL dump to SQLite3 compatible dump (including MySQL `KEY xxxxx` stat
 ## Usage
 
 1. Dump MySQL DB
+   
 
     ~~~~
     mysqldump --skip-extended-insert --compact [options]... DB_name > dump_mysql.sql
